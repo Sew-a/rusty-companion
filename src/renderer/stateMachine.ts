@@ -31,6 +31,21 @@ export const ROBOT_NAME = 'Rusty';
 
 const BROWSER_TOOL = /^(WebFetch|WebSearch|mcp__Claude_Browser__|mcp__claude-in-chrome__|mcp__.*playwright.*__browser_|mcp__computer-use__)/;
 
+/** Tools that pause Claude until you answer. */
+const WAITING_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
+
+/** Events that only mean "Claude is busy" while a turn is running (between your prompt and the final
+ *  reply). Outside a turn they come from background helpers, e.g. the desktop app fires a
+ *  SubagentStop a few seconds after every reply, and must not make Rusty look busy. */
+export const IN_TURN_EVENTS = new Set([
+  'PreToolUse',
+  'PostToolUse',
+  'PostToolBatch',
+  'SubagentStart',
+  'SubagentStop',
+  'MessageDisplay',
+]);
+
 /** If nothing arrives for this long while "busy", assume Claude was interrupted and go idle. */
 export const BUSY_TIMEOUT_SECONDS = 300;
 
@@ -44,6 +59,8 @@ export function reactionFor(evt: HookEvent): Reaction | null {
     case 'UserPromptSubmit':
       return { mood: 'thinking' };
     case 'PreToolUse':
+      // Tools that wait for YOU (a question, plan approval): no dots, just "your turn".
+      if (WAITING_TOOLS.has(tool)) return { mood: 'idle', bubble: 'Your turn! I asked you something.', holdSeconds: 12 };
       if (BROWSER_TOOL.test(tool)) return { mood: 'browsing', bubble: 'Let me look at this…' };
       return { mood: 'working' };
     case 'PostToolUse':

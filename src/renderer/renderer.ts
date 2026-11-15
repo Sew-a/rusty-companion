@@ -4,7 +4,7 @@ import { Face } from './face';
 import { ClipPlayer, loadRobot, RobotAnimator, type ClipName, type RobotParts } from './robot';
 import { SessionFilter } from './sessionFilter';
 import { Speaker } from './speaker';
-import { BUSY_TIMEOUT_SECONDS, reactionFor, ROBOT_NAME, USER_NAME, type Mood } from './stateMachine';
+import { BUSY_TIMEOUT_SECONDS, IN_TURN_EVENTS, reactionFor, ROBOT_NAME, USER_NAME, type Mood } from './stateMachine';
 import { TOUR } from './tour';
 
 const BODY_FPS = 12; // stepped, stop-motion feel for the body
@@ -123,9 +123,17 @@ function say(text: string | undefined): void {
   if (voiceEnabled && text) void speaker.say(text);
 }
 
+/** True between your prompt (UserPromptSubmit) and Claude's final reply (Stop). */
+let turnActive = false;
+
 window.companion.onEvent((evt) => {
   if (evt.hook_event_name === 'CompanionDemo') return startTour();
   if (touring || !sessions.accept(evt)) return;
+  const name = evt.hook_event_name ?? '';
+  if (name === 'UserPromptSubmit') turnActive = true;
+  // Busy signals outside a turn come from background helpers: ignore them (no dots after replies).
+  if (IN_TURN_EVENTS.has(name) && !turnActive) return;
+  if (name === 'Stop' || name === 'StopFailure' || name === 'SessionEnd') turnActive = false;
   lastEventAt = now();
   const r = reactionFor(evt);
   if (!r) return;
@@ -146,19 +154,24 @@ function startTour(): void {
   if (tourTimer) clearTimeout(tourTimer);
   touring = true;
   const run = (i: number) => {
+    strolling = false;
     if (i >= TOUR.length) {
       touring = false;
       tourTimer = null;
       setMood('idle');
-      nextWalkAt = now() + rand(8, 16);
+      nextWalkAt = now() + rand(...STROLL_GAP);
       return;
     }
     const step = TOUR[i];
     if (step.mood === 'walking') {
+      // The walking step is a stroll with the idle face.
+      strolling = true;
       walkDir = Math.random() < 0.5 ? -1 : 1;
       walkUntil = now() + step.seconds;
+      setMood('idle', step.bubble);
+    } else {
+      setMood(step.mood, step.bubble);
     }
-    setMood(step.mood, step.bubble);
     say(step.bubble);
     tourTimer = setTimeout(() => run(i + 1), step.seconds * 1000);
   };
@@ -171,7 +184,7 @@ function startTour(): void {
 
 window.companion.onPlacement((p: Placement) => {
   seated = p === 'sitting';
-  if (seated && mood === 'walking' && !touring) setMood('idle');
+  if (seated && !touring) strolling = false;
 });
 
 window.companion.onHop(() => clips?.play('Hop'));
@@ -259,7 +272,7 @@ canvas.addEventListener('pointerup', (e) => {
   dragging = false;
   canvas.releasePointerCapture(e.pointerId);
   window.companion.dragEnd();
-  if (mood === 'walking' && !touring) setMood('idle');
+  if (!touring) stopStroll(now());
 });
 
 canvas.addEventListener('dblclick', () => {
@@ -285,12 +298,17 @@ bubbleEl.addEventListener('click', () => {
 // Idle walking along the taskbar
 // ---------------------------------------------------------------------------------------------
 
+// Strolling is separate from the mood, so Rusty can walk while he talks (bubble and face stay).
 const WALK_SPEED = 36; // screen pixels per second, moved in stepped increments
 const FACING = 0.55; // yaw while walking (radians), keeps the face visible
+/** Pause between strolls and stroll length (seconds). */
+const STROLL_GAP: [number, number] = [3, 9];
+const STROLL_LENGTH: [number, number] = [3, 8];
 let walkEnabled = true;
+let strolling = false;
 let walkDir = 1;
 let walkUntil = 0;
-let nextWalkAt = now() + rand(6, 14);
+let nextWalkAt = now() + rand(4, 9);
 let walkInFlight = false;
 let facing = 0;
 
@@ -298,45 +316,48 @@ window.companion.onSettings((s) => {
   walkEnabled = s.walk;
   voiceEnabled = s.voice;
   if (!voiceEnabled) speaker.stop();
-  if (!walkEnabled && mood === 'walking' && !touring) setMood('idle');
+  if (!walkEnabled && !touring) strolling = false;
 });
 
-/** Called once per body step (BODY_FPS). Starts, advances and ends idle strolls. */
+/** Moods in which Rusty may wander: idle, or while he is talking/cheering about a finished reply. */
+function mayStroll(): boolean {
+  if (!walkEnabled || seated || dragging || clips?.playing) return false;
+  if (mood === 'idle') return true;
+  return (mood === 'happy' || mood === 'talking') && speaker.speaking;
+}
+
+function stopStroll(t: number): void {
+  strolling = false;
+  nextWalkAt = t + rand(...STROLL_GAP);
+}
+
+/** Called once per body step (BODY_FPS). Starts, advances and ends strolls along the taskbar. */
 function walkStep(t: number): void {
-  if (!touring && mood === 'idle' && walkEnabled && !seated && !dragging && t > nextWalkAt) {
-    walkDir = Math.random() < 0.5 ? -1 : 1;
-    walkUntil = t + rand(3, 7);
-    setMood('walking');
-  }
-  if (mood === 'walking') {
-    if (t > walkUntil) {
-      if (!touring) {
-        setMood('idle');
-        nextWalkAt = t + rand(8, 20);
-      }
-    } else if (!walkInFlight && !seated) {
-      walkInFlight = true;
-      window.companion
-        .walkBy((walkDir * WALK_SPEED) / BODY_FPS)
-        .then((r) => {
-          if (!r.onFloor) {
-            // Not on the taskbar (dragged elsewhere): during the tour walk on the spot, else stop.
-            if (!touring) {
-              setMood('idle');
-              nextWalkAt = now() + rand(8, 20);
-            }
-          } else if (r.blocked) {
-            walkDir = -walkDir;
-          }
-        })
-        .finally(() => (walkInFlight = false));
+  if (!touring) {
+    if (!strolling && t > nextWalkAt && mayStroll()) {
+      strolling = true;
+      walkDir = Math.random() < 0.5 ? -1 : 1;
+      walkUntil = t + rand(...STROLL_LENGTH);
+    } else if (strolling && (t > walkUntil || !mayStroll())) {
+      stopStroll(t);
+    } else if (!strolling && !mayStroll() && mood !== 'idle') {
+      // Claude is busy: don't start a stroll the moment it finishes.
+      nextWalkAt = Math.max(nextWalkAt, t + rand(2, 5));
     }
-  } else if (mood !== 'idle') {
-    // Claude is doing something: postpone the next stroll.
-    nextWalkAt = Math.max(nextWalkAt, t + rand(6, 12));
+  }
+  if (strolling && !walkInFlight) {
+    walkInFlight = true;
+    window.companion
+      .walkBy((walkDir * WALK_SPEED) / BODY_FPS)
+      .then((r) => {
+        // Not on the taskbar (sitting or dropped elsewhere): walk on the spot in the tour, else stop.
+        if (!r.onFloor && !touring) stopStroll(now());
+        else if (r.blocked) walkDir = -walkDir;
+      })
+      .finally(() => (walkInFlight = false));
   }
   // Turn towards the walking direction, back to the front when stopped (stepped easing).
-  const target = mood === 'walking' ? walkDir * FACING : 0;
+  const target = strolling ? walkDir * FACING : 0;
   facing += (target - facing) * 0.35;
   if (Math.abs(facing) < 0.01) facing = 0;
 }
@@ -377,7 +398,7 @@ function frame(): void {
       animator?.restoreRest();
       clipWasPlaying = false;
     }
-    animator?.pose(bodyMood(mood), stepped, stepped - moodStart, facing, seated);
+    animator?.pose(strolling ? 'walking' : bodyMood(mood), stepped, stepped - moodStart, facing, seated);
   }
   updateGaze();
   face.setMouth(speaker.mouth());
@@ -392,7 +413,9 @@ const headBox = new THREE.Box3();
 /** Show the thought cloud while Claude is thinking or working (and no speech bubble is up),
  *  placed just above and to the right of the robot's head. */
 function updateThinkingCloud(): void {
-  const show = (mood === 'thinking' || mood === 'working') && bubbleEl.classList.contains('hidden') && parts;
+  // Dots only while Claude is actually thinking/working, never while Rusty is talking.
+  const show =
+    (mood === 'thinking' || mood === 'working') && bubbleEl.classList.contains('hidden') && !speaker.speaking && parts;
   thinkingEl.classList.toggle('hidden', !show);
   if (!show || !parts) return;
   headBox.setFromObject(parts.body);

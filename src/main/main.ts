@@ -249,6 +249,13 @@ function createWindow(): void {
   if (PREVIEW_OUT) {
     const previewPlacement = process.env.COMPANION_PREVIEW_PLACEMENT as Placement | undefined;
     if (previewPlacement) setTimeout(() => win?.webContents.send('placement', previewPlacement), 1500);
+    // A sequence of events: COMPANION_PREVIEW_EVENTS='[{"at":1000,"evt":{...}}, ...]'
+    const previewEvents = process.env.COMPANION_PREVIEW_EVENTS;
+    if (previewEvents) {
+      for (const { at, evt } of JSON.parse(previewEvents) as { at: number; evt: HookEvent }[]) {
+        setTimeout(() => win?.webContents.send('hook-event', evt), at);
+      }
+    }
     const previewHop = Number(process.env.COMPANION_PREVIEW_HOP);
     if (previewHop) setTimeout(() => win?.webContents.send('hop'), previewHop);
     const previewEvent = process.env.COMPANION_PREVIEW_EVENT;
