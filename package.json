@@ -1,0 +1,28 @@
+{
+  "name": "claude-desktop-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An animated desktop companion that reacts to Claude Code sessions via hooks.",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/build.mjs && electron .",
+    "typecheck": "tsc --noEmit",
+    "test-event": "node scripts/send-test-event.mjs",
+    "hooks:install": "node scripts/install-hooks.mjs",
+    "hooks:uninstall": "node scripts/install-hooks.mjs --uninstall"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "koffi": "^3.3.8",
+    "kokoro-js": "^1.2.1",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "electron": "^45.3.2",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}
