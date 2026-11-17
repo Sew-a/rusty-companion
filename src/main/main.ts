@@ -266,16 +266,20 @@ function createWindow(): void {
   // The taskbar can push itself above other topmost windows when clicked; re-assert periodically.
   setInterval(() => win?.setAlwaysOnTop(true, 'screen-saver'), 5000);
 
-  // Feed the cursor position (relative to our window) so the eyes can follow it.
-  let lastCursor = { x: -1, y: -1 };
+  // Feed the cursor position (relative to our window): the eyes follow it, and the renderer uses it
+  // to decide when the window should catch clicks. Windows doesn't reliably forward mouse moves to a
+  // click-through window, so this poll is what makes Rusty grabbable. Compare relative positions so
+  // a window that walks under a still cursor also updates.
+  let lastCursor = { x: Number.NaN, y: Number.NaN };
   setInterval(() => {
     if (!win) return;
     const p = screen.getCursorScreenPoint();
-    if (p.x === lastCursor.x && p.y === lastCursor.y) return;
-    lastCursor = p;
     const [wx, wy] = win.getPosition();
-    win.webContents.send('cursor', { x: p.x - wx, y: p.y - wy });
-  }, 66);
+    const rel = { x: p.x - wx, y: p.y - wy };
+    if (rel.x === lastCursor.x && rel.y === lastCursor.y) return;
+    lastCursor = rel;
+    win.webContents.send('cursor', rel);
+  }, 33);
 
   if (PREVIEW_OUT) {
     const previewPlacement = process.env.COMPANION_PREVIEW_PLACEMENT as Placement | undefined;

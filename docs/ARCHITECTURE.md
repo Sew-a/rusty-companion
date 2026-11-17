@@ -91,8 +91,21 @@ The window is small (280×330) and moves with Rusty instead of covering the scre
   its top edge, 150 px left of the right edge (clear of the window buttons). He leaves after ~1 s
   without a valid window (so menus and popups don't make him jump). The Hop clip plays, and the window
   moves at the peak of the jump.
-- **Click-through:** `setIgnoreMouseEvents(true, { forward: true })`; the renderer raycasts the
-  mouse against the robot and turns clicks on only over him or his bubble.
+- **Click-through:** the window starts with `setIgnoreMouseEvents(true, { forward: true })`. The main
+  process polls the cursor every 33 ms and sends its position relative to the window (`cursor` IPC,
+  also sent when the window moves under a still cursor). The renderer raycasts that point against
+  the robot and checks the bubble's rectangle, and turns clicks on only over him or his bubble.
+  Don't rely on forwarded `mousemove` events alone: Windows 11 stopped delivering them to the
+  click-through window (Nov 2026), which made Rusty impossible to grab. Once clicks are on, a drag
+  uses pointer capture and `move-by` IPC.
+
+## Platforms
+
+Windows 11 is the tested platform. Everything except sitting on windows is cross-platform Electron
+and Node, so macOS should run Rusty with the Dock as his floor (`workArea` excludes the Dock and menu
+bar). `win32.ts` returns `null` on other platforms, so he never sits there. Sitting on windows on
+macOS would need the frontmost window's bounds (for example `CGWindowListCopyWindowInfo` through
+koffi, which may need the Screen Recording permission). Not tested on a Mac yet.
 
 ## Voice
 

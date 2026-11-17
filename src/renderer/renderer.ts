@@ -249,7 +249,12 @@ window.companion.onPlacement((p: Placement) => {
 window.companion.onHop(() => clips?.play('Hop'));
 
 let cursor: { x: number; y: number } | null = null;
-window.companion.onCursor((pos) => (cursor = pos));
+// The main process polls the cursor: this is what makes Rusty grabbable, because Windows doesn't
+// reliably forward mouse moves to a click-through window.
+window.companion.onCursor((pos) => {
+  cursor = pos;
+  updateHover(pos.x, pos.y);
+});
 
 const tmp = new THREE.Vector3();
 
@@ -299,11 +304,19 @@ function setInteractive(v: boolean): void {
   window.companion.setIgnoreMouse(!v);
 }
 
-window.addEventListener('mousemove', (e) => {
+function overBubble(clientX: number, clientY: number): boolean {
+  if (bubbleEl.classList.contains('hidden')) return false;
+  const r = bubbleEl.getBoundingClientRect();
+  return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+}
+
+/** Catch clicks only while the cursor is over Rusty or his bubble; click through everywhere else. */
+function updateHover(clientX: number, clientY: number): void {
   if (dragging) return;
-  const onBubble = !bubbleEl.classList.contains('hidden') && bubbleEl.contains(e.target as Node);
-  setInteractive(onBubble || overRobot(e.clientX, e.clientY));
-});
+  setInteractive(overBubble(clientX, clientY) || overRobot(clientX, clientY));
+}
+
+window.addEventListener('mousemove', (e) => updateHover(e.clientX, e.clientY));
 
 window.addEventListener('mouseleave', () => {
   if (!dragging) setInteractive(false);

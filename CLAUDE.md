@@ -7,7 +7,7 @@ separate assistant: when Sev talks to Rusty they are talking to Claude. Rusty re
 sessions (terminal and the Claude desktop app's Code tab) through local `http` hooks, shows Claude's
 state (thinking, working, browsing, permission, done, error), speaks reply summaries with a robot
 voice, strolls along the taskbar and sits on the active window. Windows 11 is the only tested
-platform. Original character from Sev's sketches: a boxy burnt-orange screen robot with near-black
+platform; macOS should run everything except sitting on windows (untested, see `docs/ARCHITECTURE.md`). Original character from Sev's sketches: a boxy burnt-orange screen robot with near-black
 tube limbs; keep it clearly distinct from any cartoon character.
 
 Read `docs/ARCHITECTURE.md` for the full design. `README.md` is for public users.
@@ -37,7 +37,7 @@ After rebuilding the model, copy `assets/colors/robot_burnt.glb` to `assets/robo
 - `test/`: vitest tests (no Electron needed)
 - `blender/build_robot.py`: the model, props, colours and animation clips (re-runnable)
 - `extras/*-skill`: optional spoken Claude Code skills (discussion is installed for Sev at
-  `~/.claude/skills/discussion/`; brainstorm, recap, quiz live here until installed)
+  `~/.claude/skills/discussion/`; brainstorm, recap, quiz, build-and-learn live here until installed)
 - `docs/IDEAS.md`: features suggested for later
 
 ## Things that must stay in sync
@@ -63,6 +63,10 @@ After rebuilding the model, copy `assets/colors/robot_burnt.glb` to `assets/robo
   or deny tools for the user. Don't.
 - Changing `name` in `package.json` moves the saved-state folder (`%APPDATA%\claude-desktop-companion`).
 - Wildcard deletes are blocked in this environment; delete files by exact path.
+- Windows no longer forwards mouse moves to the click-through window. Hover (and so dragging) relies
+  on the main process's cursor poll (`cursor` IPC → `updateHover` in `renderer.ts`). Keep it.
+- A running Rusty keeps the old code: after changing `src/`, restart him (stop the electron processes,
+  then `npm start`) before saying a fix works.
 
 ## Working with Sev
 

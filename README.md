@@ -16,8 +16,9 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
   <img src="blender/previews/new_moods_sheet.png" alt="Taking notes, sprinting, resting, dancing, knocking and morning coffee" width="760">
 </p>
 
-> Status: a personal project, working daily on **Windows 11**. macOS and Linux are not supported yet
-> (sitting on windows uses Windows APIs). Expect rough edges.
+> Status: a personal project, working daily on **Windows 11**. The main features should also work on
+> **macOS** (see [macOS](#macos)), but it hasn't been tested there yet. Linux is untested. Expect
+> rough edges.
 
 ## What Rusty does
 
@@ -32,7 +33,7 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 | Claude needs your permission | waves both arms and asks (out loud too); after a minute he knocks on his screen to remind you |
 | Claude finishes | cheers, shows the answer in a speech bubble and reads the first three sentences aloud, then offers to read the rest |
 | a task took 7+ minutes | dances |
-| you say "let's have a discussion", "let's brainstorm", "quiz me" or "what did we do today?" | reads the whole reply aloud (needs the optional skills) |
+| you say "let's have a discussion", "let's brainstorm", "quiz me", "walk me through what we built" or "what did we do today?" | reads the whole reply aloud (needs the optional skills) |
 | nothing is happening | strolls along the taskbar, sits on the active window, watches your mouse; after a while he yawns and sits down on the taskbar |
 | it's morning / late at night | sips coffee / yawns now and then |
 
@@ -42,7 +43,7 @@ states in the tray menu.
 
 ## Requirements
 
-- Windows 10 or 11
+- Windows 10 or 11 (macOS should work too, with one feature missing: see [macOS](#macos))
 - [Node.js](https://nodejs.org) 20 or newer
 - [Claude Code](https://code.claude.com) (CLI or the Claude desktop app's Code tab), version 2.1 or newer
 - About 400 MB of free disk space for the voice model, downloaded automatically on first start
@@ -75,19 +76,33 @@ To remove them again: `npm run hooks:uninstall`.
 
 ### Optional: spoken skills
 
-`extras/` holds four Claude Code skills written to be heard, not read. For each one you want, copy
+`extras/` holds five Claude Code skills written to be heard, not read. For each one you want, copy
 `extras/<name>-skill/SKILL.md` to `~/.claude/skills/<name>/SKILL.md`:
 
 - **discussion:** "let's have a discussion", "what's your opinion on…"
 - **brainstorm:** "let's brainstorm…": three ideas a round, narrowing down to one
 - **recap:** "what did we do today?": a short summary from Rusty's event log and git
 - **quiz:** "quiz me on…": one question at a time, with a score
+- **build-and-learn:** "how does this work?", "walk me through what we built", "summarize this
+  page": explains your own project and the docs you're reading, one step at a time
 
 Claude answers conversationally and Rusty reads the whole reply aloud.
 
 ### Start with Windows
 
 Right-click Rusty's tray icon and tick **Start with Windows**.
+
+### macOS
+
+The same install steps should work on a Mac (not tested yet). What to expect:
+
+- **Works:** the robot, his face and moods, the speech bubble and voice, hooks, dragging, the tray
+  menu (in the menu bar), and strolling along the bottom of the screen, just above the Dock.
+- **Missing:** sitting on the active window. Finding the active window uses Windows APIs, so on a
+  Mac Rusty simply stays on the floor. Untick **Sit on the active window** if you like.
+- The **Start with Windows** item starts him at login on a Mac too.
+
+If you try it on a Mac, an issue telling us how it went is very welcome.
 
 ## Using Rusty
 
@@ -119,6 +134,9 @@ runs on your CPU, so no audio or text leaves your computer.
 - **Voice is slow:** run `node scripts/voice-bench.mjs fp32` to see how fast your CPU makes speech.
 - **He doesn't sit on a window:** maximised windows have no room above them, so he stays on the
   taskbar. Un-maximise the window.
+- **You can't grab him:** make sure you're running the latest code (restart him after `git pull`).
+  Rusty's window lets clicks pass through except where he is; he tracks the mouse himself, so if
+  clicks still go through, check `logs/placement.log` for errors.
 
 ## How it's built
 
