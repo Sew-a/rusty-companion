@@ -3,11 +3,13 @@
 Run with Blender 5.1:
     blender --background --factory-startup --python blender/build_robot.py
 or inside a running Blender (e.g. via the Blender MCP server):
-    exec(open(r"C:/Workspace/companion/blender/build_robot.py").read())
+    exec(open(r"C:/Workspace/rusty-companion/blender/build_robot.py").read())
 
 Part naming contract with the app (src/renderer/robot.ts), per shade prefix X:
     X_Root (empty at the feet) -> X_Body (shell, origin at body bottom) -> X_Screen, X_ArmL, X_ArmR, details
     X_Root -> X_LegL, X_LegR (origins at the hips)
+    X_ArmL -> X_Notepad, X_Mug (props in the left hand, origins at their centres; the app hides them
+    until needed and keeps them upright while the arm moves)
 Arms and legs have their origins at the shoulder / hip so the app can rotate them.
 The face is not modelled: the app draws it at runtime on the Screen quad (UVs 0..1, aspect 5:4).
 The app renders every material flat (unlit), so shading is baked into colours: the box's side,
@@ -20,7 +22,12 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-OUT_DIR = r"C:/Workspace/companion/assets/colors"
+try:
+    # This repo's assets/colors (the script lives in <repo>/blender/).
+    OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "colors")
+except NameError:
+    # exec() inside a running Blender has no __file__.
+    OUT_DIR = r"C:/Workspace/rusty-companion/assets/colors"
 SCENE_NAME = "CompanionRobot"
 
 INK = "#2B211C"   # buttons and slots
@@ -198,8 +205,26 @@ def build(scene, prefix, x, body_hex):
     # Arms: start low, plain tubes with rounded ends.
     ar = p["arm_r"]
     shz = h * p["shoulder"]
-    b.capsule_limb("ArmL", base + Vector((w / 2 + ar, 0, shz)), p["arm"], ar, body)
+    arm_l = b.capsule_limb("ArmL", base + Vector((w / 2 + ar, 0, shz)), p["arm"], ar, body)
     b.capsule_limb("ArmR", base + Vector((-w / 2 - ar, 0, shz)), p["arm"], ar, body)
+
+    # Props held in the left hand. Hidden by the app until needed.
+    hand = base + Vector((w / 2 + ar, 0, shz - p["arm"]))
+    # Notepad: cream paper with a clip and three written lines, held by its bottom edge.
+    pad_c = hand + Vector((0, -0.05, 0.12))
+    pad = b.box("Notepad", (0.23, 0.014, 0.29), pad_c, pad_c, mats["screen"], arm_l)
+    for i in range(3):
+        lc = pad_c + Vector((-0.012 * i, -0.009, 0.05 - i * 0.06))
+        b.box(f"NotepadLine{i}", (0.16 - 0.03 * i, 0.004, 0.016), lc, lc, mats["ink"], pad)
+    cc = pad_c + Vector((0, -0.009, 0.13))
+    b.box("NotepadClip", (0.1, 0.008, 0.03), cc, cc, mats["ink"], pad)
+    # Mug: dark rust cup (stands out against the cream screen) with an ink handle and coffee.
+    mug_c = hand + Vector((0, -0.06, 0.03))
+    mug = b.cylinder("Mug", 0.05, 0.1, mug_c, mug_c, mats["rim"], arm_l, segments=16)
+    hc = mug_c + Vector((0.06, 0, 0))
+    b.box("MugHandle", (0.024, 0.022, 0.06), hc, hc, mats["ink"], mug)
+    tc = mug_c + Vector((0, 0, 0.046))
+    b.cylinder("MugCoffee", 0.042, 0.012, tc, tc, mats["ink"], mug, segments=16)
 
     # Legs: straight tubes with a short rounded foot pointing forward.
     lr = p["leg_r"]

@@ -12,8 +12,22 @@ export type Mood =
   | 'error'
   | 'sleep'
   | 'bye'
+  /** Taking notes on a little notepad while Claude researches. */
+  | 'researching'
   /** Not driven by Claude: an idle stroll along the taskbar. */
-  | 'walking';
+  | 'walking'
+  /** Body only: sprinting along the taskbar while Claude works on a fix. */
+  | 'running'
+  /** A big yawn and a stretch before sitting down. */
+  | 'tired'
+  /** Sitting on the taskbar (or a window), enjoying himself. */
+  | 'resting'
+  /** A little dance after a long task. */
+  | 'dancing'
+  /** Knocking on his screen: something has waited on Sev for a while. */
+  | 'nudge'
+  /** Morning: a sip from his mug. */
+  | 'sipping';
 
 export interface Reaction {
   mood: Mood;
@@ -24,12 +38,19 @@ export interface Reaction {
   more?: string;
   /** Seconds before falling back to idle. Undefined = stay until the next event. */
   holdSeconds?: number;
+  /** Claude is paused until Sev answers (permission, question, plan approval). */
+  waiting?: boolean;
 }
 
 export const USER_NAME = 'Sev';
 export const ROBOT_NAME = 'Rusty';
 
 const BROWSER_TOOL = /^(WebFetch|WebSearch|mcp__Claude_Browser__|mcp__claude-in-chrome__|mcp__.*playwright.*__browser_|mcp__computer-use__)/;
+
+/** Web and browser tools (Rusty points at the screen; several in one turn count as research). */
+export function isBrowserTool(tool: string): boolean {
+  return BROWSER_TOOL.test(tool);
+}
 
 /** Tools that pause Claude until you answer. */
 const WAITING_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
@@ -60,7 +81,7 @@ export function reactionFor(evt: HookEvent): Reaction | null {
       return { mood: 'thinking' };
     case 'PreToolUse':
       // Tools that wait for YOU (a question, plan approval): no dots, just "your turn".
-      if (WAITING_TOOLS.has(tool)) return { mood: 'idle', bubble: 'Your turn! I asked you something.', holdSeconds: 12 };
+      if (WAITING_TOOLS.has(tool)) return { mood: 'idle', bubble: 'Your turn! I asked you something.', holdSeconds: 75, waiting: true };
       if (BROWSER_TOOL.test(tool)) return { mood: 'browsing', bubble: 'Let me look at this…' };
       return { mood: 'working' };
     case 'PostToolUse':
@@ -70,9 +91,13 @@ export function reactionFor(evt: HookEvent): Reaction | null {
     case 'SubagentStart':
       return { mood: 'working' };
     case 'PermissionRequest':
-      return { mood: 'permission', bubble: tool ? `I need your OK to use ${shortTool(tool)}.` : 'I need your OK!' };
+      return {
+        mood: 'permission',
+        bubble: tool ? `I need your OK to use ${shortTool(tool)}.` : 'I need your OK!',
+        waiting: true,
+      };
     case 'Notification':
-      if (evt.notification_type === 'permission_prompt') return { mood: 'permission', bubble: 'I need your OK!' };
+      if (evt.notification_type === 'permission_prompt') return { mood: 'permission', bubble: 'I need your OK!', waiting: true };
       if (evt.notification_type === 'idle_prompt') return { mood: 'sleep', holdSeconds: undefined };
       return null;
     case 'MessageDisplay':

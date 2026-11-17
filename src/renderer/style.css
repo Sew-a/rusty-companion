@@ -20,7 +20,8 @@ body {
   position: absolute;
   left: 12px;
   right: 12px;
-  top: 8px;
+  /* Anchored just above Rusty's head; longer text grows the bubble upwards. */
+  bottom: 152px;
   padding: 10px 12px;
   background: #fffaf3;
   color: #2b211c;

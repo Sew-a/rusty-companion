@@ -12,7 +12,8 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 </p>
 
 <p align="center">
-  <img src="blender/previews/tour_sheet.png" alt="Every state Rusty can be in" width="760">
+  <img src="blender/previews/tour_sheet.png" alt="Every state Rusty can be in" width="760"><br>
+  <img src="blender/previews/new_moods_sheet.png" alt="Taking notes, sprinting, resting, dancing, knocking and morning coffee" width="760">
 </p>
 
 > Status: a personal project, working daily on **Windows 11**. macOS and Linux are not supported yet
@@ -26,10 +27,14 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 | you send a prompt | shows a thought cloud with dots |
 | Claude edits files or runs commands | looks busy |
 | Claude uses the browser | points and looks curious |
-| Claude needs your permission | waves both arms and asks (out loud too) |
+| Claude does research (several web lookups, a research skill or agent) | takes notes on a little notepad |
+| you ask for a bug fix | sprints back and forth along the taskbar while Claude works |
+| Claude needs your permission | waves both arms and asks (out loud too); after a minute he knocks on his screen to remind you |
 | Claude finishes | cheers, shows the answer in a speech bubble and reads the first three sentences aloud, then offers to read the rest |
-| you say "let's have a discussion" | talks with you and reads the whole reply (needs the optional discussion skill) |
-| nothing is happening | strolls along the taskbar, sits on the active window, watches your mouse, naps |
+| a task took 7+ minutes | dances |
+| you say "let's have a discussion", "let's brainstorm", "quiz me" or "what did we do today?" | reads the whole reply aloud (needs the optional skills) |
+| nothing is happening | strolls along the taskbar, sits on the active window, watches your mouse; after a while he yawns and sits down on the taskbar |
+| it's morning / late at night | sips coffee / yawns now and then |
 
 Other details: he follows only the session you last typed into, hops onto the top edge of the window
 you click (if it isn't maximised), remembers where you left him, and has a guided tour of all his
@@ -68,11 +73,17 @@ running, the hooks fail silently and Claude is not affected.
 
 To remove them again: `npm run hooks:uninstall`.
 
-### Optional: discussion mode
+### Optional: spoken skills
 
-Copy `extras/discussion-skill/SKILL.md` to `~/.claude/skills/discussion/SKILL.md`. Then say
-"let's have a discussion" (or "what's your opinion on…") in Claude Code: Claude answers
-conversationally and Rusty reads the whole reply aloud.
+`extras/` holds four Claude Code skills written to be heard, not read. For each one you want, copy
+`extras/<name>-skill/SKILL.md` to `~/.claude/skills/<name>/SKILL.md`:
+
+- **discussion:** "let's have a discussion", "what's your opinion on…"
+- **brainstorm:** "let's brainstorm…": three ideas a round, narrowing down to one
+- **recap:** "what did we do today?": a short summary from Rusty's event log and git
+- **quiz:** "quiz me on…": one question at a time, with a score
+
+Claude answers conversationally and Rusty reads the whole reply aloud.
 
 ### Start with Windows
 
@@ -118,6 +129,7 @@ active window, and Kokoro-82M (fp32, CPU) for the voice. See [docs/ARCHITECTURE.
 ```bash
 npm run build       # bundle with esbuild
 npm run typecheck   # TypeScript check
+npm test            # logic tests (vitest, no Electron needed)
 npm run test-event -- Stop "All done!"   # send a fake event to a running Rusty
 ```
 

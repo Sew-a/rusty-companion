@@ -15,5 +15,6 @@ export interface WalkResult {
   blocked: boolean;
 }
 
-/** Where the robot currently is: on the taskbar, sitting on a window's top edge, or dropped elsewhere. */
-export type Placement = 'floor' | 'sitting' | 'free';
+/** Where the robot currently is: on the taskbar, sitting on a window's top edge, sitting down on the
+ *  taskbar edge (resting, legs over the taskbar), or dropped elsewhere. */
+export type Placement = 'floor' | 'sitting' | 'resting' | 'free';

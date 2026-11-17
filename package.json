@@ -8,6 +8,7 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/build.mjs && electron .",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "test-event": "node scripts/send-test-event.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
     "hooks:uninstall": "node scripts/install-hooks.mjs --uninstall"
@@ -23,6 +24,7 @@
     "@types/three": "^0.187.0",
     "electron": "^45.3.2",
     "esbuild": "^0.28.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^3.2.7"
   }
 }

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import type { Placement } from '../shared/settings';
+import { EventRouter } from './eventRouter';
 import { Face } from './face';
-import { ClipPlayer, loadRobot, RobotAnimator, type ClipName, type RobotParts } from './robot';
-import { SessionFilter } from './sessionFilter';
+import { IdleScheduler, SIP_SECONDS, YAWN_SECONDS } from './idleScheduler';
+import { ClipPlayer, DANCE_SECONDS, loadRobot, ROBOT_SCALE, RobotAnimator, type ClipName, type RobotParts } from './robot';
 import { Speaker } from './speaker';
-import { BUSY_TIMEOUT_SECONDS, IN_TURN_EVENTS, reactionFor, ROBOT_NAME, USER_NAME, type Mood } from './stateMachine';
+import { ROBOT_NAME, USER_NAME, type Mood } from './stateMachine';
 import { TOUR } from './tour';
 
 const BODY_FPS = 12; // stepped, stop-motion feel for the body
@@ -62,8 +63,10 @@ function bodyMood(m: Mood): Mood {
 let mood: Mood = 'idle';
 let moodStart = 0;
 let holdUntil = Infinity;
-let lastEventAt = 0;
 let seated = false;
+
+/** A short animation on top of the mood (dance, knock, sip, late-night yawn): owns body and face. */
+let overlay: { mood: Mood; start: number; until: number } | null = null;
 
 function now(): number {
   return performance.now() / 1000;
@@ -73,16 +76,22 @@ function rand(a: number, b: number): number {
   return a + Math.random() * (b - a);
 }
 
-function setMood(next: Mood, bubble?: string, holdSeconds?: number): void {
+function setMood(next: Mood, bubble?: string, holdSeconds?: number, skipClip = false): void {
   const t = now();
   const clip = MOOD_CLIPS[next];
   // Start the mood's clip when the mood changes; a repeated greeting waves again.
-  if (clip && (next !== mood || next === 'greet')) clips?.play(clip);
+  if (clip && !skipClip && (next !== mood || next === 'greet')) clips?.play(clip);
   if (next !== mood) moodStart = t;
   mood = next;
   holdUntil = holdSeconds === undefined ? Infinity : t + holdSeconds;
   if (bubble) showBubble(bubble);
   else if (next !== 'talking') hideBubble();
+}
+
+function setOverlay(m: Mood, seconds: number): void {
+  const t = now();
+  overlay = { mood: m, start: t, until: t + seconds };
+  if (strolling) stopStroll(t);
 }
 
 /** The rest of the last long reply, waiting to be read aloud if you click the bubble. */
@@ -110,51 +119,93 @@ function hideBubble(): void {
 // Claude events (filtered to the session you're working in) and the guided tour
 // ---------------------------------------------------------------------------------------------
 
-const sessions = new SessionFilter();
+const router = new EventRouter();
+const idle = new IdleScheduler(now());
 let touring = false;
 let tourTimer: ReturnType<typeof setTimeout> | null = null;
 
-// --- Voice: which events are spoken aloud (their bubble text) ---
+// --- Voice ---
 const speaker = new Speaker();
 let voiceEnabled = true;
-const SPOKEN_EVENTS = new Set(['SessionStart', 'PermissionRequest', 'Notification', 'Stop', 'StopFailure', 'SessionEnd']);
 
 function say(text: string | undefined): void {
   if (voiceEnabled && text) void speaker.say(text);
 }
 
-/** True between your prompt (UserPromptSubmit) and Claude's final reply (Stop). */
-let turnActive = false;
+/** Something happened (a Claude event, a click, a drag): stand up if resting. */
+function wake(t: number): void {
+  if (idle.activity(t)) window.companion.setRest(false);
+}
 
 window.companion.onEvent((evt) => {
-  if (evt.hook_event_name === 'CompanionDemo') return startTour();
-  if (touring || !sessions.accept(evt)) return;
   const name = evt.hook_event_name ?? '';
-  if (name === 'UserPromptSubmit') turnActive = true;
-  // Busy signals outside a turn come from background helpers: ignore them (no dots after replies).
-  if (IN_TURN_EVENTS.has(name) && !turnActive) return;
-  if (name === 'Stop' || name === 'StopFailure' || name === 'SessionEnd') turnActive = false;
-  lastEventAt = now();
-  const r = reactionFor(evt);
-  if (!r) return;
-  setMood(r.mood, r.bubble, r.holdSeconds);
-  if (r.more && voiceEnabled && r.bubble) {
+  if (name === 'CompanionDemo') return startTour();
+  if (name === 'CompanionMood') return demoMood(String(evt.mood ?? ''));
+  if (touring) return;
+  const t = now();
+  const routed = router.handle(evt, t, voiceEnabled);
+  if (!routed) return;
+  wake(t);
+  overlay = null;
+  const r = routed.reaction;
+  idle.setWaiting(Boolean(r.waiting), t);
+  // A long task ends with a dance instead of the cheer clip.
+  setMood(r.mood, r.bubble, r.holdSeconds, routed.dance);
+  if (routed.dance) setOverlay('dancing', DANCE_SECONDS);
+  if (routed.offerMore && r.bubble) {
     showBubble(r.bubble, true);
-    pendingMore = r.more;
-  }
-  if (SPOKEN_EVENTS.has(evt.hook_event_name ?? '')) {
-    // With voice off there is nobody to "click to hear the rest", so don't offer it.
-    say(r.more && !voiceEnabled ? r.bubble : (r.speech ?? r.bubble));
+    pendingMore = routed.offerMore;
   }
   // A new prompt means a new turn: stop talking about the last one.
-  if (evt.hook_event_name === 'UserPromptSubmit') speaker.stop();
+  if (routed.stopSpeech) speaker.stop();
+  say(routed.speak);
 });
+
+/** Show a state on request (tray "Test states", previews), without Claude. */
+function demoMood(m: string): void {
+  const t = now();
+  wake(t);
+  switch (m) {
+    case 'researching':
+      setMood('researching', 'Let me take some notes.', 8);
+      break;
+    case 'running':
+      forcedRunUntil = t + 7;
+      setMood('working', 'A bug? On my way!', 7);
+      break;
+    case 'tired':
+      setMood('idle');
+      idle.tireNow();
+      break;
+    case 'dancing':
+      setMood('happy', 'Woohoo, all done!', 8, true);
+      setOverlay('dancing', DANCE_SECONDS);
+      break;
+    case 'nudge':
+      setMood('permission', 'I need your OK!', 8);
+      nudge();
+      break;
+    case 'sipping':
+      setMood('idle');
+      setOverlay('sipping', SIP_SECONDS);
+      break;
+  }
+}
+
+/** Knock on the screen: something has waited on Sev for a while. Said once per request. */
+function nudge(): void {
+  const line = mood === 'permission' ? `Still waiting for your OK, ${USER_NAME}.` : `${USER_NAME}, I asked you something.`;
+  setOverlay('nudge', 3);
+  showBubble(line);
+  say(line);
+}
 
 function startTour(): void {
   if (tourTimer) clearTimeout(tourTimer);
   touring = true;
   const run = (i: number) => {
     strolling = false;
+    overlay = null;
     if (i >= TOUR.length) {
       touring = false;
       tourTimer = null;
@@ -169,6 +220,12 @@ function startTour(): void {
       walkDir = Math.random() < 0.5 ? -1 : 1;
       walkUntil = now() + step.seconds;
       setMood('idle', step.bubble);
+    } else if (step.mood === 'running') {
+      forcedRunUntil = now() + step.seconds;
+      setMood('working', step.bubble);
+    } else if (step.mood === 'dancing' || step.mood === 'sipping') {
+      setMood(step.mood === 'dancing' ? 'happy' : 'idle', step.bubble, undefined, true);
+      setOverlay(step.mood, step.seconds);
     } else {
       setMood(step.mood, step.bubble);
     }
@@ -183,8 +240,10 @@ function startTour(): void {
 // ---------------------------------------------------------------------------------------------
 
 window.companion.onPlacement((p: Placement) => {
-  seated = p === 'sitting';
+  seated = p === 'sitting' || p === 'resting';
   if (seated && !touring) strolling = false;
+  // Woken up while sitting down (an event arrived mid-hop): stand straight back up.
+  if (p === 'resting' && !idle.resting) window.companion.setRest(false);
 });
 
 window.companion.onHop(() => clips?.play('Hop'));
@@ -272,15 +331,20 @@ canvas.addEventListener('pointerup', (e) => {
   dragging = false;
   canvas.releasePointerCapture(e.pointerId);
   window.companion.dragEnd();
-  if (!touring) stopStroll(now());
+  const t = now();
+  wake(t);
+  if (mood === 'resting' || mood === 'tired') setMood('idle');
+  if (!touring) stopStroll(t);
 });
 
 canvas.addEventListener('dblclick', () => {
+  wake(now());
   const line = `Hi ${USER_NAME}! It's ${ROBOT_NAME}.`;
   setMood('greet', line, 3);
   say(line);
 });
 bubbleEl.addEventListener('click', () => {
+  wake(now());
   if (pendingMore) {
     // Read the rest of the long reply.
     const rest = pendingMore;
@@ -295,17 +359,21 @@ bubbleEl.addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// Idle walking along the taskbar
+// Walking along the taskbar: idle strolls, and sprints while Claude fixes a bug
 // ---------------------------------------------------------------------------------------------
 
 // Strolling is separate from the mood, so Rusty can walk while he talks (bubble and face stay).
-const WALK_SPEED = 36; // screen pixels per second, moved in stepped increments
+const WALK_SPEED = 36 * ROBOT_SCALE; // screen pixels per second, moved in stepped increments
+const RUN_SPEED = 220 * ROBOT_SCALE;
 const FACING = 0.55; // yaw while walking (radians), keeps the face visible
 /** Pause between strolls and stroll length (seconds). */
 const STROLL_GAP: [number, number] = [3, 9];
 const STROLL_LENGTH: [number, number] = [3, 8];
 let walkEnabled = true;
 let strolling = false;
+let running = false;
+/** Sprint on request until this time (tray test, tour). */
+let forcedRunUntil = 0;
 let walkDir = 1;
 let walkUntil = 0;
 let nextWalkAt = now() + rand(4, 9);
@@ -321,7 +389,7 @@ window.companion.onSettings((s) => {
 
 /** Moods in which Rusty may wander: idle, or while he is talking/cheering about a finished reply. */
 function mayStroll(): boolean {
-  if (!walkEnabled || seated || dragging || clips?.playing) return false;
+  if (!walkEnabled || seated || dragging || running || overlay || clips?.playing) return false;
   if (mood === 'idle') return true;
   return (mood === 'happy' || mood === 'talking') && speaker.speaking;
 }
@@ -331,9 +399,20 @@ function stopStroll(t: number): void {
   nextWalkAt = t + rand(...STROLL_GAP);
 }
 
-/** Called once per body step (BODY_FPS). Starts, advances and ends strolls along the taskbar. */
+/** Sprint while a bug-fix turn keeps Claude busy (or on request). Tells the main process to stay off windows. */
+function updateRunning(t: number): void {
+  const want = walkEnabled && !dragging && !overlay && (router.shouldRun(mood) || t < forcedRunUntil);
+  if (want === running) return;
+  running = want;
+  window.companion.setRoam(running);
+  if (running) strolling = false;
+  else nextWalkAt = t + rand(...STROLL_GAP);
+}
+
+/** Called once per body step (BODY_FPS). Starts, advances and ends strolls and sprints. */
 function walkStep(t: number): void {
-  if (!touring) {
+  updateRunning(t);
+  if (!touring && !running) {
     if (!strolling && t > nextWalkAt && mayStroll()) {
       strolling = true;
       walkDir = Math.random() < 0.5 ? -1 : 1;
@@ -345,21 +424,46 @@ function walkStep(t: number): void {
       nextWalkAt = Math.max(nextWalkAt, t + rand(2, 5));
     }
   }
-  if (strolling && !walkInFlight) {
+  if ((strolling || running) && !walkInFlight) {
     walkInFlight = true;
+    const speed = running ? RUN_SPEED : WALK_SPEED;
     window.companion
-      .walkBy((walkDir * WALK_SPEED) / BODY_FPS)
+      .walkBy((walkDir * speed) / BODY_FPS)
       .then((r) => {
-        // Not on the taskbar (sitting or dropped elsewhere): walk on the spot in the tour, else stop.
-        if (!r.onFloor && !touring) stopStroll(now());
-        else if (r.blocked) walkDir = -walkDir;
+        // Not on the taskbar (sitting or dropped elsewhere): walk/run on the spot in the tour or a sprint, else stop.
+        if (!r.onFloor && !touring && !running) stopStroll(now());
+        else if (r.onFloor && r.blocked) walkDir = -walkDir;
       })
       .finally(() => (walkInFlight = false));
   }
   // Turn towards the walking direction, back to the front when stopped (stepped easing).
-  const target = strolling ? walkDir * FACING : 0;
+  const target = strolling || running ? walkDir * FACING : 0;
   facing += (target - facing) * 0.35;
   if (Math.abs(facing) < 0.01) facing = 0;
+}
+
+/** Rusty's own idle life: getting tired and sitting down, morning coffee, late yawns, the waiting nudge. */
+function idleStep(t: number): void {
+  if (touring) return;
+  const busyBody = strolling || running || dragging || Boolean(clips?.playing) || overlay !== null;
+  switch (idle.tick({ t, hour: new Date().getHours(), mood, busyBody })) {
+    case 'yawn':
+      setMood('tired');
+      break;
+    case 'rest':
+      setMood('resting');
+      window.companion.setRest(true);
+      break;
+    case 'nightYawn':
+      setOverlay('tired', YAWN_SECONDS);
+      break;
+    case 'sip':
+      setOverlay('sipping', SIP_SECONDS);
+      break;
+    case 'nudge':
+      nudge();
+      break;
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -377,9 +481,9 @@ function frame(): void {
 
   if (!touring) {
     if (t > holdUntil) setMood('idle');
-    const busy = mood === 'thinking' || mood === 'working' || mood === 'browsing' || mood === 'talking';
-    if (busy && lastEventAt && t - lastEventAt > BUSY_TIMEOUT_SECONDS) setMood('idle');
+    if (router.busyTimedOut(mood, t)) setMood('idle');
   }
+  if (overlay && t > overlay.until) overlay = null;
 
   const stepped = Math.floor(t * BODY_FPS) / BODY_FPS;
   if (stepped !== lastStep) {
@@ -390,6 +494,7 @@ function frame(): void {
     }
     lastStep = stepped;
     walkStep(t);
+    idleStep(t);
   }
   if (clips?.playing) {
     // The clip owns the body for now.
@@ -398,11 +503,15 @@ function frame(): void {
       animator?.restoreRest();
       clipWasPlaying = false;
     }
-    animator?.pose(strolling ? 'walking' : bodyMood(mood), stepped, stepped - moodStart, facing, seated);
+    if (overlay) animator?.pose(overlay.mood, stepped, stepped - overlay.start, facing, seated);
+    else {
+      const body = running ? 'running' : strolling ? 'walking' : bodyMood(mood);
+      animator?.pose(body, stepped, stepped - moodStart, facing, seated);
+    }
   }
   updateGaze();
   face.setMouth(speaker.mouth());
-  face.draw(mood, t);
+  face.draw(overlay?.mood ?? mood, t);
   updateThinkingCloud();
   renderer.render(scene, camera);
 }
@@ -415,7 +524,11 @@ const headBox = new THREE.Box3();
 function updateThinkingCloud(): void {
   // Dots only while Claude is actually thinking/working, never while Rusty is talking.
   const show =
-    (mood === 'thinking' || mood === 'working') && bubbleEl.classList.contains('hidden') && !speaker.speaking && parts;
+    (mood === 'thinking' || mood === 'working') &&
+    !overlay &&
+    bubbleEl.classList.contains('hidden') &&
+    !speaker.speaking &&
+    parts;
   thinkingEl.classList.toggle('hidden', !show);
   if (!show || !parts) return;
   headBox.setFromObject(parts.body);

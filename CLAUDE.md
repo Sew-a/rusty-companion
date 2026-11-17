@@ -18,6 +18,7 @@ Read `docs/ARCHITECTURE.md` for the full design. `README.md` is for public users
 npm start            # build + run Electron (Rusty appears bottom-right)
 npm run build        # esbuild bundles to dist/
 npm run typecheck    # tsc --noEmit (run after every change)
+npm test             # vitest: event logic, idle scheduler, hook server, sync checks (run after every change)
 npm run test-event -- Stop "text"     # fake hook event to a running Rusty
 npm run hooks:install / hooks:uninstall
 node scripts/voice-bench.mjs fp32     # TTS speed on this machine
@@ -29,17 +30,24 @@ After rebuilding the model, copy `assets/colors/robot_burnt.glb` to `assets/robo
 ## Layout
 
 - `src/main`: Electron main process (window, tray, hook server, Win32 via koffi, placement, TTS worker)
-- `src/renderer`: three.js scene, robot poses and clips, canvas face, state machine, session filter, speaker, tour
+- `src/renderer`: three.js scene, robot poses and clips, canvas face, state machine, event router,
+  idle scheduler, session filter, speaker, tour. Keep decisions in the pure modules (`eventRouter.ts`,
+  `idleScheduler.ts`, `stateMachine.ts`) so they stay testable; `renderer.ts` only applies them.
 - `src/preload`: bridge API (`window.companion`)
-- `blender/build_robot.py`: the model, colours and animation clips (re-runnable)
-- `extras/discussion-skill`: optional Claude Code skill (installed for Sev at `~/.claude/skills/discussion/`)
+- `test/`: vitest tests (no Electron needed)
+- `blender/build_robot.py`: the model, props, colours and animation clips (re-runnable)
+- `extras/*-skill`: optional spoken Claude Code skills (discussion is installed for Sev at
+  `~/.claude/skills/discussion/`; brainstorm, recap, quiz live here until installed)
+- `docs/IDEAS.md`: features suggested for later
 
 ## Things that must stay in sync
 
 - `CLIPS` frame ranges: `blender/build_robot.py` ↔ `src/renderer/robot.ts`
 - Screen aspect 0.8: `screen_aspect` in the Blender script ↔ `W`/`H` (256×205) in `face.ts`
-- Part names `*_Body`, `*_Screen`, `*_ArmL/R`, `*_LegL/R`, `*_Root` (the app finds them by suffix)
-- Discussion marker `<!-- rusty:discussion -->`: skill ↔ `stateMachine.ts`
+- Part names `*_Body`, `*_Screen`, `*_ArmL/R`, `*_LegL/R`, `*_Root`, and the left-hand props
+  `*_Notepad`, `*_Mug` (the app finds them by suffix)
+- Discussion marker `<!-- rusty:discussion -->`: every `extras/*-skill` ↔ `stateMachine.ts`
+- `test/sync.test.ts` checks all of the above.
 
 ## Gotchas (learned the hard way)
 

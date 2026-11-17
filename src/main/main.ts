@@ -81,7 +81,7 @@ function isOnFloor(): boolean {
 }
 
 function rememberPosition(): void {
-  if (!win || PREVIEW_OUT || placement === 'sitting') return;
+  if (!win || PREVIEW_OUT || placement === 'sitting' || placement === 'resting') return;
   const [x, y] = win.getPosition();
   state = { ...state, x, y };
   saveState(state);
@@ -137,8 +137,37 @@ function seatFor(fg: ForegroundWindow): { x: number; y: number } | null {
   return { x, y };
 }
 
+/** Sprinting along the taskbar (a bug fix is running): don't sit on windows meanwhile. */
+let roaming = false;
+/** Where to stand up to after resting on the taskbar edge. */
+let restReturn: { x: number; y: number } | null = null;
+
+/** Window position that puts the robot's body bottom on the taskbar's top edge (legs over the taskbar). */
+function restSeat(): { x: number; y: number } | null {
+  if (!win || !seatOffset) return null;
+  const { area } = floorOf(win.getBounds());
+  return { x: win.getPosition()[0], y: Math.round(area.y + area.height - seatOffset) };
+}
+
+function sitDownOnTaskbar(): void {
+  if (!win || hopping || placement !== 'floor') return;
+  const seat = restSeat();
+  if (!seat) return;
+  const [x, y] = win.getPosition();
+  restReturn = { x, y };
+  hopTo(seat, () => setPlacement('resting', 'tired'));
+}
+
+function standUpFromTaskbar(why: string): void {
+  if (!win || placement !== 'resting') return;
+  const [x] = win.getPosition();
+  const back = { x, y: restReturn?.y ?? floorOf(win.getBounds()).floorY };
+  restReturn = null;
+  hopTo(back, () => setPlacement('floor', why));
+}
+
 function sitTick(): void {
-  if (!win || !state.sit || !seatOffset || Date.now() - lastDragAt < 1500) return;
+  if (!win || !state.sit || !seatOffset || roaming || Date.now() - lastDragAt < 1500) return;
   const fg = foregroundWindow();
   if (!fg) return;
   if (fg.pid === process.pid) return; // our own window or tray menu: keep whatever we're doing
@@ -151,7 +180,9 @@ function sitTick(): void {
     if (placement !== 'sitting') {
       // Hop from the taskbar (or wherever it is) up onto the window.
       const [x, y] = win.getPosition();
-      returnPos = { x, y };
+      // Resting on the taskbar edge: come back to standing on the taskbar, not to the resting spot.
+      returnPos = placement === 'resting' ? { x, y: restReturn?.y ?? floorOf(win.getBounds()).floorY } : { x, y };
+      restReturn = null;
       seatedHwnd = fg.hwnd;
       hopTo(seat, () => setPlacement('sitting', `${fg.exe || fg.className}`));
     } else if (fg.hwnd !== seatedHwnd) {
@@ -351,6 +382,13 @@ function buildTrayMenu(): void {
           },
           { label: 'Error (StopFailure)', click: test('StopFailure') },
           { label: 'Sleep (idle)', click: test('Notification', { notification_type: 'idle_prompt' }) },
+          { type: 'separator' },
+          { label: 'Take notes', click: test('CompanionMood', { mood: 'researching' }) },
+          { label: 'Sprint (bug fix)', click: test('CompanionMood', { mood: 'running' }) },
+          { label: 'Get tired and sit down', click: test('CompanionMood', { mood: 'tired' }) },
+          { label: 'Dance', click: test('CompanionMood', { mood: 'dancing' }) },
+          { label: 'Knock (waiting nudge)', click: test('CompanionMood', { mood: 'nudge' }) },
+          { label: 'Sip coffee', click: test('CompanionMood', { mood: 'sipping' }) },
         ],
       },
       { type: 'separator' },
@@ -433,6 +471,18 @@ ipcMain.handle('walk-by', (_e, dx: number): WalkResult => {
 ipcMain.handle('speak', (_e, text: string): number => {
   if (!voice || !state.voice || !text.trim()) return 0;
   return voice.speak(text);
+});
+
+ipcMain.on('roam', (_e, on: boolean) => {
+  roaming = Boolean(on);
+  if (!roaming) return;
+  if (placement === 'sitting') leaveSeat('sprint');
+  else if (placement === 'resting') standUpFromTaskbar('sprint');
+});
+
+ipcMain.on('rest', (_e, on: boolean) => {
+  if (on) sitDownOnTaskbar();
+  else standUpFromTaskbar('woke up');
 });
 
 ipcMain.on('seat-offset', (_e, px: number) => {

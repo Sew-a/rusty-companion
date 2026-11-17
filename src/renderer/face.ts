@@ -61,9 +61,57 @@ export class Face {
 
     switch (mood) {
       case 'happy':
-        this.xEye(cx - ex, ey);
-        this.xEye(cx + ex, ey);
+        this.dotEyes(cx, ex, ey, blinking);
         this.smile(cx, 118, 62, 30);
+        break;
+      case 'researching': {
+        // Reading the notepad (low, on his left = viewer's right); glances up now and then.
+        const glance = Math.sin(t * 0.7) > 0.85;
+        if (blinking) this.dotEyes(cx, ex, ey, true);
+        else {
+          const dx = glance ? 0 : 12;
+          const dy = glance ? 0 : 14;
+          this.dot(cx - ex + dx, ey + dy, 10);
+          this.dot(cx + ex + dx, ey + dy, 10);
+        }
+        // Focused little mouth, pulled to one side.
+        this.line(cx - 6, 134, cx + 22, 130);
+        break;
+      }
+      case 'tired': {
+        // Yawn: squeezed eyes and a big round mouth that opens and closes.
+        this.squint(cx - ex, ey);
+        this.squint(cx + ex, ey);
+        const open = Math.sin(Math.min(1, t % 2.4 / 1.8) * Math.PI);
+        c.beginPath();
+        c.ellipse(cx, 132, 16 + 8 * open, 8 + 22 * open, 0, 0, Math.PI * 2);
+        c.fill();
+        break;
+      }
+      case 'resting':
+        // Relaxed: heavy-lidded eyes, a small content smile.
+        this.lidEyes(cx, ex, ey, blinking);
+        this.smile(cx, 124, 30, 12);
+        break;
+      case 'dancing':
+      case 'sipping':
+        // Eyes closed with joy (upward arcs).
+        this.joyEye(cx - ex, ey);
+        this.joyEye(cx + ex, ey);
+        if (mood === 'dancing') this.smile(cx, 116, 58, 34);
+        else {
+          c.beginPath();
+          c.ellipse(cx, 132, 9, 7, 0, 0, Math.PI * 2);
+          c.stroke();
+        }
+        break;
+      case 'nudge':
+        // Wide eyes at you, with an exclamation mark.
+        this.ringEyes(cx, ex, ey, false);
+        this.line(cx - 18, 134, cx + 18, 134);
+        c.font = 'bold 50px Segoe UI, sans-serif';
+        c.textAlign = 'center';
+        c.fillText('!', W - 28, 56);
         break;
       case 'greet':
         this.dotEyes(cx, ex, ey, blinking);
@@ -184,10 +232,29 @@ export class Face {
     }
   }
 
-  private xEye(x: number, y: number): void {
-    const s = 14;
-    this.line(x - s, y - s, x + s, y + s);
-    this.line(x + s, y - s, x - s, y + s);
+  /** Squeezed-shut eye (a yawn): a short flat line with a slight downward hook at the outside. */
+  private squint(x: number, y: number): void {
+    this.line(x - 15, y + 2, x + 15, y + 2);
+  }
+
+  /** Happy closed eye: an upward arc (^). */
+  private joyEye(x: number, y: number): void {
+    const c = this.ctx;
+    c.beginPath();
+    c.arc(x, y + 8, 16, 1.15 * Math.PI, 1.85 * Math.PI);
+    c.stroke();
+  }
+
+  /** Round eyes with heavy upper lids (relaxed). */
+  private lidEyes(cx: number, ex: number, ey: number, blinking: boolean): void {
+    if (blinking) return this.dotEyes(cx, ex, ey, true);
+    const c = this.ctx;
+    for (const x of [cx - ex, cx + ex]) {
+      c.beginPath();
+      c.arc(x, ey + 3, 11, 0, Math.PI);
+      c.fill();
+      this.line(x - 15, ey + 2, x + 15, ey + 2);
+    }
   }
 
   private closedEye(x: number, y: number): void {

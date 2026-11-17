@@ -49,6 +49,14 @@ const api = {
   loadModel(): Promise<Uint8Array | null> {
     return ipcRenderer.invoke('load-model');
   },
+  /** Sprint mode: leave any window seat and stay on the taskbar (true), or allow sitting again (false). */
+  setRoam(on: boolean): void {
+    ipcRenderer.send('roam', on);
+  },
+  /** Sit down on the taskbar edge (true) or stand back up onto it (false). */
+  setRest(on: boolean): void {
+    ipcRenderer.send('rest', on);
+  },
 };
 
 export type CompanionApi = typeof api;

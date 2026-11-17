@@ -39,6 +39,22 @@ Claude Code session ──http hook POST──▶ Electron main process ──IP
 | `Notification(idle_prompt)` | sleep | |
 | `SessionEnd` | bye | Wave clip |
 
+### Behaviours on top of the moods
+
+| When | What Rusty does | Where |
+|---|---|---|
+| A research skill, an Explore/research subagent, or the 2nd web tool in a turn | **researching**: holds a notepad out and scribbles, until the turn ends | `eventRouter.ts` |
+| The prompt sounds like a fix (fix, bug, broken, crash, error, failing, hotfix) | **sprints** along the taskbar at ~6× walking speed while Claude is busy; leaves any window seat (`roam` IPC) | `eventRouter.ts`, `renderer.ts`, `main.ts` |
+| The turn took 7+ minutes | **dances** (two 2.4 s routines) instead of the Cheer clip | `eventRouter.ts` |
+| A permission or question waits 60 s | **knocks** on his screen, says "Still waiting for your OK, Sev." once | `idleScheduler.ts` |
+| 4 min with nothing happening (2 min late at night) | **yawns**, then **sits down** on the taskbar edge with legs over the taskbar (`rest` IPC); any event, click or drag stands him up | `idleScheduler.ts`, `main.ts` |
+| Morning (5–11), idle | sips from a **mug** now and then | `idleScheduler.ts` |
+| Late night (23–5), idle | yawns now and then | `idleScheduler.ts` |
+
+Short animations (dance, knock, sip, late yawn) are **overlays** in `renderer.ts`: they own the
+body and face for a few seconds, then the mood shows again. The notepad and mug are children of
+the left arm; `RobotAnimator.keepUpright` cancels the arm's rotation so they stay level.
+
 ## Files
 
 | Path | What it does |
@@ -54,12 +70,15 @@ Claude Code session ──http hook POST──▶ Electron main process ──IP
 | `src/renderer/robot.ts` | Loads the `.glb`, flat unlit materials, procedural poses, Blender clip player |
 | `src/renderer/face.ts` | All expressions on a 256×205 canvas, blink, gaze, speaking mouth |
 | `src/renderer/stateMachine.ts` | Event → mood/bubble/speech; reply splitting for speech |
+| `src/renderer/eventRouter.ts` | Per-turn logic: session filter, turn gating, research, fix sprints, dance, what to say (pure, tested) |
+| `src/renderer/idleScheduler.ts` | Tired → rest, waiting nudge, morning sips, late yawns (pure, tested) |
 | `src/renderer/sessionFilter.ts` | Which session Rusty follows |
 | `src/renderer/speaker.ts` | Plays speech chunks with Web Audio; loudness → mouth |
 | `src/renderer/tour.ts` | The guided tour script |
 | `blender/build_robot.py` | Builds the robot, its colours and animation clips, exports `assets/colors/robot_burnt.glb` |
 | `scripts/` | Build, hook installer, test-event sender, voice samples and benchmark |
-| `extras/discussion-skill/SKILL.md` | Optional Claude Code skill for discussion mode |
+| `extras/*-skill/SKILL.md` | Optional spoken Claude Code skills: discussion, brainstorm, recap, quiz |
+| `test/` | vitest tests: state machine, session filter, event router, idle scheduler, hook server, sync checks |
 
 ## Placement
 
@@ -95,7 +114,10 @@ modelled: the app draws it on the `Screen` quad.
 
 ## Testing without Claude
 
-- Tray → **Test states** or **Show me around (tour)**.
+- `npm test` runs the logic tests (no Electron needed).
+- Tray → **Test states** (includes notes, sprint, tired/sit, dance, knock, coffee) or **Show me around (tour)**.
+  These send a `CompanionMood` event (`{"hook_event_name":"CompanionMood","mood":"dancing"}`), which
+  also works in `COMPANION_PREVIEW_EVENTS`.
 - `npm run test-event -- <EventName> [text]` sends a fake event.
 - Preview mode renders once to a PNG and quits, without touching a running Rusty:
   `COMPANION_PREVIEW=out.png COMPANION_PREVIEW_DELAY=5000 [COMPANION_PREVIEW_EVENT=Stop COMPANION_PREVIEW_TEXT="…"] [COMPANION_PREVIEW_HOP=4000] [COMPANION_PREVIEW_PLACEMENT=sitting] [COMPANION_MODEL=path.glb] npx electron .`

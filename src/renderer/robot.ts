@@ -14,6 +14,9 @@ export interface RobotParts {
   legR?: THREE.Object3D;
   /** The model's own root node (animated by the Hop/Cheer clips). */
   rigRoot?: THREE.Object3D;
+  /** Props in the left hand (children of armL), hidden until a mood needs them. */
+  notepad?: THREE.Object3D;
+  mug?: THREE.Object3D;
   meshes: THREE.Object3D[];
   /** Blender animation clips, already cut apart by name (empty for the placeholder robot). */
   clips: Map<ClipName, THREE.AnimationClip>;
@@ -28,9 +31,11 @@ const CLIP_FPS = 24;
 
 export const CLAUDE_ORANGE = 0xd97757;
 const INK = 0x2b211c;
-const TARGET_HEIGHT = 1.4;
+/** Overall size of Rusty on screen (1 = the original size). Walking speeds in renderer.ts scale with it. */
+export const ROBOT_SCALE = 0.85;
+const TARGET_HEIGHT = 1.4 * ROBOT_SCALE;
 /** Rest-pose width including arms; leaves room in the window for a raised arm. */
-const TARGET_WIDTH = 1.6;
+const TARGET_WIDTH = 1.6 * ROBOT_SCALE;
 
 export async function loadRobot(face: Face): Promise<RobotParts> {
   const data = await window.companion.loadModel();
@@ -94,6 +99,10 @@ async function fromGltf(data: Uint8Array, face: Face): Promise<RobotParts> {
     }
   }
 
+  const notepad = find('Notepad');
+  const mug = find('Mug');
+  for (const prop of [notepad, mug]) if (prop) prop.visible = false;
+
   return {
     root,
     body: find('Body') ?? model,
@@ -102,10 +111,18 @@ async function fromGltf(data: Uint8Array, face: Face): Promise<RobotParts> {
     legL: find('LegL'),
     legR: find('LegR'),
     rigRoot: find('Root'),
-    meshes,
+    notepad,
+    mug,
+    // Hidden props must not catch clicks.
+    meshes: meshes.filter((m) => !isInside(m, notepad) && !isInside(m, mug)),
     clips,
     animRoot: model,
   };
+}
+
+function isInside(o: THREE.Object3D, ancestor: THREE.Object3D | undefined): boolean {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === ancestor) return true;
+  return false;
 }
 
 /** Plays the Blender clips one at a time. While a clip plays, the procedural posing is paused. */
@@ -216,18 +233,27 @@ function placeholder(face: Face): RobotParts {
 
 interface Rest {
   bodyY: number;
+  bodyRotX: number;
   bodyRotZ: number;
   armL?: THREE.Euler;
   armR?: THREE.Euler;
   legL?: THREE.Euler;
   legR?: THREE.Euler;
+  armLQ?: THREE.Quaternion;
+  notepadQ?: THREE.Quaternion;
+  mugQ?: THREE.Quaternion;
 }
+
+/** Length of the dance (seconds); two routines of 2.4 s each. */
+export const DANCE_SECONDS = 4.8;
 
 /** Procedural, low-frame-rate posing for each mood. Runs on top of each part's rest pose. */
 export class RobotAnimator {
   private rest: Rest;
   /** Full rest transforms of every animated node, to undo whatever a Blender clip left behind. */
   private restTransforms: { o: THREE.Object3D; p: THREE.Vector3; q: THREE.Quaternion; s: THREE.Vector3 }[];
+  private q = new THREE.Quaternion();
+  private e = new THREE.Euler();
 
   constructor(private parts: RobotParts) {
     const nodes = [parts.body, parts.rigRoot, parts.armL, parts.armR, parts.legL, parts.legR].filter(
@@ -236,11 +262,15 @@ export class RobotAnimator {
     this.restTransforms = nodes.map((o) => ({ o, p: o.position.clone(), q: o.quaternion.clone(), s: o.scale.clone() }));
     this.rest = {
       bodyY: parts.body.position.y,
+      bodyRotX: parts.body.rotation.x,
       bodyRotZ: parts.body.rotation.z,
       armL: parts.armL?.rotation.clone(),
       armR: parts.armR?.rotation.clone(),
       legL: parts.legL?.rotation.clone(),
       legR: parts.legR?.rotation.clone(),
+      armLQ: parts.armL?.quaternion.clone(),
+      notepadQ: parts.notepad?.quaternion.clone(),
+      mugQ: parts.mug?.quaternion.clone(),
     };
   }
 
@@ -251,6 +281,7 @@ export class RobotAnimator {
       r.o.quaternion.copy(r.q);
       r.o.scale.copy(r.s);
     }
+    this.showProps(false, false);
   }
 
   /** t is time in seconds already quantised to the stepped frame rate; moodTime is time since the mood began;
@@ -259,14 +290,20 @@ export class RobotAnimator {
     const p = this.parts;
     const r = this.rest;
     // In model space the left arm is on +X; a positive Z rotation swings it outwards/up.
+    // A negative X rotation swings a limb forward (towards the viewer).
     let armL = 0.15;
     let armR = -0.15;
     let armLx = 0;
     let armRx = 0;
     let bob = Math.sin(t * 2) * 0.015;
     let tilt = 0;
+    let lean = 0;
     let legSwing = 0;
     let rootX = 0;
+    let notepad = false;
+    let mug = false;
+    /** Extra tilt of the held prop around its X axis (negative = top away from the viewer). */
+    let propTilt = 0;
 
     switch (mood) {
       case 'greet':
@@ -297,11 +334,35 @@ export class RobotAnimator {
         armR = -1.6;
         tilt = -0.12;
         break;
+      case 'researching': {
+        // Notepad held up in the left hand, the right hand scribbles; a small nod now and then.
+        // Held out to his side at chest height, so the pad is in full view.
+        notepad = true;
+        armL = 0.8;
+        armLx = -0.35;
+        armR = -0.3 + Math.sin(t * 9) * 0.08;
+        armRx = -0.9 + Math.sin(t * 14) * 0.1;
+        propTilt = -0.25;
+        const nod = Math.sin(t * 0.9) > 0.8 ? -0.03 : 0;
+        bob = nod;
+        lean = 0.05 + (nod ? 0.04 : 0);
+        tilt = 0.04;
+        break;
+      }
       case 'permission':
         armL = 2.2 + Math.sin(t * 6) * 0.4;
         armR = -2.2 - Math.sin(t * 6) * 0.4;
         bob = Math.abs(Math.sin(t * 6)) * 0.05;
         break;
+      case 'nudge': {
+        // Knock-knock: the left hand goes up over his screen's corner and taps it three times.
+        const tap = moodTime < 1.8 ? Math.max(0, Math.sin(moodTime * Math.PI * 3.4)) : 0;
+        armL = 2.75 + tap * 0.35;
+        armLx = -0.25;
+        tilt = 0.05 + tap * 0.03;
+        bob = -tap * 0.015;
+        break;
+      }
       case 'talking':
         armL = 0.6 + Math.sin(t * 3) * 0.3;
         armLx = -0.5;
@@ -331,27 +392,108 @@ export class RobotAnimator {
         bob = Math.abs(Math.sin(ph)) * 0.03;
         break;
       }
+      case 'running': {
+        // Sprint: fast big strides, bent arms pumping, leaning into it.
+        const ph = t * 15;
+        legSwing = Math.sin(ph) * 0.65;
+        armL = 0.25;
+        armR = -0.25;
+        armLx = -0.35 - Math.sin(ph) * 0.85;
+        armRx = -0.35 + Math.sin(ph) * 0.85;
+        bob = Math.abs(Math.sin(ph)) * 0.07;
+        lean = 0.16;
+        break;
+      }
+      case 'tired': {
+        // A big stretch with both arms up, then they flop down.
+        const up = moodTime < 1.7;
+        armL = up ? 2.7 + Math.sin(t * 3) * 0.1 : 0.1;
+        armR = up ? -2.7 - Math.sin(t * 3) * 0.1 : -0.1;
+        bob = up ? 0.035 : -0.03;
+        tilt = up ? Math.sin(t * 2) * 0.05 : 0.06;
+        lean = up ? -0.08 : 0.06;
+        break;
+      }
+      case 'resting':
+        // Leaning back on the hands, swaying a little.
+        armL = 0.35;
+        armR = -0.35;
+        armLx = 0.55;
+        armRx = 0.55;
+        lean = -0.07;
+        tilt = Math.sin(t * 0.8) * 0.04;
+        bob = 0;
+        break;
+      case 'dancing': {
+        if (Math.floor(moodTime / 2.4) % 2 === 0) {
+          // Side-step with arm pumps.
+          rootX = Math.sin(t * 6) * 0.09;
+          armL = 1.1 + Math.sin(t * 12) * 0.5;
+          armR = -1.1 + Math.sin(t * 12) * 0.5;
+          armLx = -0.4;
+          armRx = -0.4;
+          legSwing = Math.sin(t * 6) * 0.3;
+          bob = Math.abs(Math.sin(t * 12)) * 0.06;
+        } else {
+          // Hip sway with both arms waving overhead.
+          tilt = Math.sin(t * 5) * 0.16;
+          armL = 2.6 + Math.sin(t * 5) * 0.3;
+          armR = -2.6 + Math.sin(t * 5) * 0.3;
+          bob = Math.abs(Math.sin(t * 10)) * 0.04;
+          legSwing = Math.sin(t * 5) * 0.15;
+        }
+        break;
+      }
+      case 'sipping': {
+        // Raise the mug towards the screen, tip it during the sip, lower it again.
+        mug = true;
+        const up = moodTime > 0.6 && moodTime < 4.2;
+        const sip = moodTime > 1 && moodTime < 3.2;
+        armL = up ? -0.45 : 0.3;
+        armLx = up ? -2.0 : -0.6;
+        propTilt = sip ? -0.6 : 0;
+        lean = sip ? -0.06 : 0;
+        break;
+      }
       case 'idle':
       default:
         legSwing = 0;
         break;
     }
 
-    // Sitting on a window edge: legs hang a little forward over the edge and dangle slowly.
+    // Sitting on a window edge or the taskbar: legs hang over the edge and dangle slowly.
     let legForward = 0;
-    if (seated && mood !== 'walking') {
+    if (seated && mood !== 'walking' && mood !== 'running') {
       legForward = 0.35;
-      legSwing = Math.sin(t * 1.8) * 0.3;
+      legSwing = Math.sin(t * (mood === 'resting' ? 1.2 : 1.8)) * 0.3;
       bob = 0;
     }
 
     p.body.position.y = r.bodyY + bob;
+    p.body.rotation.x = r.bodyRotX + lean;
     p.body.rotation.z = r.bodyRotZ + tilt;
-    p.root.position.x = rootX;
+    p.root.position.x = rootX * ROBOT_SCALE;
     p.root.rotation.y = facing;
     if (p.armL && r.armL) p.armL.rotation.set(r.armL.x + armLx, r.armL.y, r.armL.z + armL);
     if (p.armR && r.armR) p.armR.rotation.set(r.armR.x + armRx, r.armR.y, r.armR.z + armR);
     if (p.legL && r.legL) p.legL.rotation.set(r.legL.x + legForward + legSwing, r.legL.y, r.legL.z);
     if (p.legR && r.legR) p.legR.rotation.set(r.legR.x + legForward - legSwing, r.legR.y, r.legR.z);
+
+    this.showProps(notepad, mug);
+    if (notepad) this.keepUpright(p.notepad, r.notepadQ, propTilt);
+    if (mug) this.keepUpright(p.mug, r.mugQ, propTilt);
+  }
+
+  private showProps(notepad: boolean, mug: boolean): void {
+    if (this.parts.notepad) this.parts.notepad.visible = notepad;
+    if (this.parts.mug) this.parts.mug.visible = mug;
+  }
+
+  /** Cancel the arm's rotation so a held prop keeps its rest orientation (plus a tilt), wherever the hand goes. */
+  private keepUpright(prop: THREE.Object3D | undefined, propRest: THREE.Quaternion | undefined, tiltX: number): void {
+    const arm = this.parts.armL;
+    if (!prop || !propRest || !arm || !this.rest.armLQ) return;
+    this.q.setFromEuler(this.e.set(tiltX, 0, 0));
+    prop.quaternion.copy(arm.quaternion).invert().multiply(this.rest.armLQ).multiply(propRest).multiply(this.q);
   }
 }
