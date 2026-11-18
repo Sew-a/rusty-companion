@@ -34,7 +34,7 @@ describe('things that must stay in sync', () => {
 
   it('the model script builds every part the app looks for', () => {
     const robot = read('src/renderer/robot.ts');
-    for (const part of ['Body', 'Screen', 'ArmL', 'ArmR', 'LegL', 'LegR', 'Root', 'Notepad', 'Mug']) {
+    for (const part of ['Body', 'Screen', 'ArmL', 'ArmR', 'LegL', 'LegR', 'Root', 'Notepad', 'Mug', 'Hammer']) {
       expect(blender, `blender part ${part}`).toMatch(new RegExp(`["']${part}["']`));
       expect(robot, `robot.ts looks up ${part}`).toContain(`'${part}'`);
     }

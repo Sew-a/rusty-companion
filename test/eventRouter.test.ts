@@ -95,6 +95,20 @@ describe('EventRouter fixes (sprint)', () => {
   });
 });
 
+describe('EventRouter coffee time', () => {
+  it('sips coffee when Sev calls a coffee break', () => {
+    const r = new EventRouter();
+    const routed = r.handle(ev('UserPromptSubmit', { prompt: "It's coffee time, Rusty!" }), 0, true);
+    expect(routed?.coffee).toBe(true);
+    expect(routed?.reaction.bubble).toBe('Coffee time!');
+  });
+
+  it('does not sip for other prompts or events', () => {
+    expect(new EventRouter().handle(ev('UserPromptSubmit', { prompt: 'fix the tests' }), 0, true)?.coffee).toBe(false);
+    expect(inTurn('x').handle(ev('Stop', { last_assistant_message: 'Coffee is great.' }), 5, true)?.coffee).toBe(false);
+  });
+});
+
 describe('EventRouter dance', () => {
   it('dances only after a long turn', () => {
     expect(inTurn('x', 0).handle(ev('Stop'), 60, true)?.dance).toBe(false);

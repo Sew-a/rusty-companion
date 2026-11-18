@@ -28,8 +28,8 @@ Claude Code session ──http hook POST──▶ Electron main process ──IP
 | Hook event | Mood | Extra |
 |---|---|---|
 | `SessionStart` | greet | Wave clip, "Hello Sev, what can I do?" (spoken) |
-| `UserPromptSubmit` | thinking | thought cloud with dots; stops any speech |
-| `PreToolUse` | working / browsing | browsing for `WebFetch`, `WebSearch`, browser MCP tools; "your turn" for `AskUserQuestion` / `ExitPlanMode` |
+| `UserPromptSubmit` | thinking | hand on chin, thought cloud with dots; stops any speech; "coffee" in the prompt → sips from his mug |
+| `PreToolUse` | working / researching / browsing | working = hammering (edits, commands); researching = notepad for `Read`, `Grep`, `Glob`; browsing for `WebFetch`, `WebSearch`, browser MCP tools; "your turn" for `AskUserQuestion` / `ExitPlanMode` |
 | `PostToolUse`, `PostToolBatch`, `SubagentStop` | thinking | only during a turn |
 | `PermissionRequest`, `Notification(permission_prompt)` | permission | spoken; accepted from any session |
 | `MessageDisplay` | talking | bubble shows the text as it streams |

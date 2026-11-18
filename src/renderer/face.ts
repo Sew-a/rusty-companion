@@ -126,16 +126,25 @@ export class Face {
         break;
       case 'thinking': {
         const look = Math.sin(t * 1.5) * 8;
+        // Sev's sketch: eyes up and to the side, a small "hmm" squiggle of a mouth.
         this.dot(cx - ex + look, ey - 10, 10);
         this.dot(cx + ex + look, ey - 10, 10);
-        this.line(cx - 24, 132, cx + 24, 132);
+        c.beginPath();
+        c.moveTo(cx - 26, 134);
+        c.quadraticCurveTo(cx - 13, 124, cx, 132);
+        c.quadraticCurveTo(cx + 13, 140, cx + 26, 128);
+        c.stroke();
         break;
       }
       case 'working':
-        this.line(cx - ex - 18, ey - 26, cx - ex + 18, ey - 20);
-        this.line(cx + ex + 18, ey - 26, cx + ex - 18, ey - 20);
+        // Sev's sketch: worried brows and a frown while he hammers away.
+        this.line(cx - ex - 18, ey - 20, cx - ex + 18, ey - 28);
+        this.line(cx + ex + 18, ey - 20, cx + ex - 18, ey - 28);
         this.dotEyes(cx, ex, ey, blinking);
-        this.line(cx - 30, 130, cx + 30, 130);
+        c.beginPath();
+        c.moveTo(cx - 30, 138);
+        c.quadraticCurveTo(cx, 116, cx + 30, 138);
+        c.stroke();
         break;
       case 'permission':
         this.dot(cx - ex, ey, 14);

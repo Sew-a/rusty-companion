@@ -10,6 +10,8 @@ export const DANCE_AFTER_SECONDS = 7 * 60;
 
 /** Prompts that sound like a bug fix: Rusty sprints while Claude works on them. */
 const FIX_PROMPT = /\b(fix(es|ed|ing)?|bugs?|buggy|broken|breaks?|crash(es|ed|ing)?|errors?|failing|fails?|hotfix)\b/i;
+/** Prompts that call a coffee break ("coffee time", "let's have a coffee"): Rusty sips from his mug. */
+const COFFEE_PROMPT = /\bcoffee\b/i;
 /** Skills and subagents that mean "researching": Rusty takes notes. */
 const RESEARCH_HINT = /research|explor|investigat/i;
 /** Moods that mean Claude is busy (Rusty may take notes or sprint instead). */
@@ -25,6 +27,8 @@ export interface Routed {
   stopSpeech: boolean;
   /** Dance instead of cheering (the turn was long). */
   dance: boolean;
+  /** Sev called coffee time: Rusty sips from his mug. */
+  coffee: boolean;
 }
 
 /**
@@ -68,7 +72,9 @@ export class EventRouter {
     }
 
     const dance = name === 'Stop' && reaction.mood === 'happy' && turnSeconds >= DANCE_AFTER_SECONDS;
-    const routed: Routed = { reaction, stopSpeech: name === 'UserPromptSubmit', dance };
+    const coffee = name === 'UserPromptSubmit' && typeof evt.prompt === 'string' && COFFEE_PROMPT.test(evt.prompt);
+    if (coffee) reaction = { ...reaction, bubble: 'Coffee time!' };
+    const routed: Routed = { reaction, stopSpeech: name === 'UserPromptSubmit', dance, coffee };
     if (reaction.more && voiceEnabled && reaction.bubble) routed.offerMore = reaction.more;
     if (SPOKEN_EVENTS.has(name)) {
       // With voice off there is nobody to "click to hear the rest", so don't offer it.

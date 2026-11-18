@@ -16,6 +16,8 @@ export type Mood =
   | 'researching'
   /** Not driven by Claude: an idle stroll along the taskbar. */
   | 'walking'
+  /** Body only: strolling while he speaks, explaining with his arms. */
+  | 'walkTalking'
   /** Body only: sprinting along the taskbar while Claude works on a fix. */
   | 'running'
   /** A big yawn and a stretch before sitting down. */
@@ -52,6 +54,9 @@ export function isBrowserTool(tool: string): boolean {
   return BROWSER_TOOL.test(tool);
 }
 
+/** Tools that only read: Rusty takes notes on his notepad instead of hammering. */
+const READING_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
+
 /** Tools that pause Claude until you answer. */
 const WAITING_TOOLS = new Set(['AskUserQuestion', 'ExitPlanMode']);
 
@@ -83,6 +88,7 @@ export function reactionFor(evt: HookEvent): Reaction | null {
       // Tools that wait for YOU (a question, plan approval): no dots, just "your turn".
       if (WAITING_TOOLS.has(tool)) return { mood: 'idle', bubble: 'Your turn! I asked you something.', holdSeconds: 75, waiting: true };
       if (BROWSER_TOOL.test(tool)) return { mood: 'browsing', bubble: 'Let me look at this…' };
+      if (READING_TOOLS.has(tool)) return { mood: 'researching' };
       return { mood: 'working' };
     case 'PostToolUse':
     case 'PostToolBatch':

@@ -10,6 +10,7 @@ Part naming contract with the app (src/renderer/robot.ts), per shade prefix X:
     X_Root -> X_LegL, X_LegR (origins at the hips)
     X_ArmL -> X_Notepad, X_Mug (props in the left hand, origins at their centres; the app hides them
     until needed and keeps them upright while the arm moves)
+    X_ArmL -> X_Hammer (origin in the hand; it turns with the arm, so a raised arm swings it)
 Arms and legs have their origins at the shoulder / hip so the app can rotate them.
 The face is not modelled: the app draws it at runtime on the Screen quad (UVs 0..1, aspect 5:4).
 The app renders every material flat (unlit), so shading is baked into colours: the box's side,
@@ -124,7 +125,11 @@ class Builder:
 
     def cylinder(self, name, radius, length, center, pivot, mat, parent, axis="Z", segments=12):
         bm = bmesh.new()
-        rot = {"Z": Matrix.Identity(4), "Y": Matrix.Rotation(math.pi / 2, 4, "X")}[axis]
+        rot = {
+            "Z": Matrix.Identity(4),
+            "Y": Matrix.Rotation(math.pi / 2, 4, "X"),
+            "X": Matrix.Rotation(math.pi / 2, 4, "Y"),
+        }[axis]
         bmesh.ops.create_cone(bm, cap_ends=True, cap_tris=False, segments=segments,
                               radius1=radius, radius2=radius, depth=length, matrix=rot)
         bmesh.ops.translate(bm, vec=Vector(center) - Vector(pivot), verts=bm.verts)
@@ -225,6 +230,12 @@ def build(scene, prefix, x, body_hex):
     b.box("MugHandle", (0.024, 0.022, 0.06), hc, hc, mats["ink"], mug)
     tc = mug_c + Vector((0, 0, 0.046))
     b.cylinder("MugCoffee", 0.042, 0.012, tc, tc, mats["ink"], mug, segments=16)
+    # Hammer: rust handle sticking out sideways from the hand, ink head across its end. Sideways at
+    # rest means it stands upright once the arm is raised out to the side (the hammering pose).
+    hl = 0.32
+    hammer = b.cylinder("Hammer", 0.026, hl, hand + Vector((hl / 2, 0, 0)), hand, mats["rim"], arm_l, axis="X")
+    hh = hand + Vector((hl, 0, 0))
+    b.box("HammerHead", (0.1, 0.09, 0.21), hh, hh, mats["ink"], hammer)
 
     # Legs: straight tubes with a short rounded foot pointing forward.
     lr = p["leg_r"]

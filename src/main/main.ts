@@ -256,6 +256,11 @@ function createWindow(): void {
   win.setAlwaysOnTop(true, 'screen-saver');
   win.setIgnoreMouseEvents(true, { forward: true });
   void win.loadFile(path.join(__dirname, '../renderer/index.html'));
+  // The timers below keep running while the app quits. Using a destroyed window throws
+  // ("Object has been destroyed") and Electron shows a JS error dialog every tick, so drop it.
+  win.on('closed', () => {
+    win = null;
+  });
   win.once('ready-to-show', () => {
     win?.showInactive();
     win?.webContents.send('settings', settings());

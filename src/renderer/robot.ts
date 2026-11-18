@@ -17,6 +17,8 @@ export interface RobotParts {
   /** Props in the left hand (children of armL), hidden until a mood needs them. */
   notepad?: THREE.Object3D;
   mug?: THREE.Object3D;
+  /** Hammer in the left hand; unlike the other props it turns with the arm. */
+  hammer?: THREE.Object3D;
   meshes: THREE.Object3D[];
   /** Blender animation clips, already cut apart by name (empty for the placeholder robot). */
   clips: Map<ClipName, THREE.AnimationClip>;
@@ -28,6 +30,13 @@ export interface RobotParts {
 export const CLIPS = { Hop: [1, 17], Wave: [24, 48], Cheer: [56, 76] } as const;
 export type ClipName = keyof typeof CLIPS;
 const CLIP_FPS = 24;
+
+/** Thinking: right arm rotation (radians, on top of rest) that brings the hand to the chin. */
+const THINK_ARM = { z: 1.95, y: -1.05 };
+/** Hammering: left arm angle out to the side at the strike and at the top of the lift, and hits per second. */
+const HAMMER_LOW = 1.2;
+const HAMMER_HIGH = 2.0;
+const HAMMER_HZ = 1.6;
 
 export const CLAUDE_ORANGE = 0xd97757;
 const INK = 0x2b211c;
@@ -104,7 +113,8 @@ async function fromGltf(data: Uint8Array, face: Face): Promise<RobotParts> {
 
   const notepad = find('Notepad');
   const mug = find('Mug');
-  for (const prop of [notepad, mug]) if (prop) prop.visible = false;
+  const hammer = find('Hammer');
+  for (const prop of [notepad, mug, hammer]) if (prop) prop.visible = false;
 
   return {
     root,
@@ -116,8 +126,9 @@ async function fromGltf(data: Uint8Array, face: Face): Promise<RobotParts> {
     rigRoot: find('Root'),
     notepad,
     mug,
+    hammer,
     // Hidden props must not catch clicks.
-    meshes: meshes.filter((m) => !isInside(m, notepad) && !isInside(m, mug)),
+    meshes: meshes.filter((m) => !isInside(m, notepad) && !isInside(m, mug) && !isInside(m, hammer)),
     clips,
     animRoot: model,
   };
@@ -284,7 +295,7 @@ export class RobotAnimator {
       r.o.quaternion.copy(r.q);
       r.o.scale.copy(r.s);
     }
-    this.showProps(false, false);
+    this.showProps(false, false, false);
   }
 
   /** t is time in seconds already quantised to the stepped frame rate; moodTime is time since the mood began;
@@ -298,6 +309,8 @@ export class RobotAnimator {
     let armR = -0.15;
     let armLx = 0;
     let armRx = 0;
+    /** Turn of the right arm about the vertical axis (negative = hand comes towards the viewer). */
+    let armRy = 0;
     let bob = Math.sin(t * 2) * 0.015;
     let tilt = 0;
     let lean = 0;
@@ -305,6 +318,7 @@ export class RobotAnimator {
     let rootX = 0;
     let notepad = false;
     let mug = false;
+    let hammer = false;
     /** Extra tilt of the held prop around its X axis (negative = top away from the viewer). */
     let propTilt = 0;
 
@@ -319,19 +333,27 @@ export class RobotAnimator {
         bob = Math.abs(Math.sin(t * 7)) * 0.08;
         break;
       case 'thinking':
-        // Hands on hips.
-        armL = 0.9;
-        armR = -0.9;
-        armLx = 0.6;
-        armRx = 0.6;
-        tilt = Math.sin(t * 1.2) * 0.06;
+        // Sev's sketch: right hand up at the chin, left arm hanging, head tilting slowly.
+        // The arm swings inwards across the body, then turns towards the viewer so it passes in front.
+        armR = THINK_ARM.z;
+        armRy = THINK_ARM.y;
+        armL = 0.2;
+        tilt = -0.05 + Math.sin(t * 1.2) * 0.04;
+        lean = 0.04;
         break;
-      case 'working':
-        armL = 0.5 + Math.sin(t * 12) * 0.25;
-        armR = -0.5 - Math.sin(t * 12 + 1) * 0.25;
-        armLx = -0.8;
-        armRx = -0.8;
+      case 'working': {
+        // Sev's sketch: hammering. Slow lift, fast strike, a little dip on each hit.
+        hammer = true;
+        const ph = (t * HAMMER_HZ) % 1;
+        const lift = ph < 0.7 ? ph / 0.7 : 1 - (ph - 0.7) / 0.3;
+        armL = HAMMER_LOW + (HAMMER_HIGH - HAMMER_LOW) * lift;
+        armLx = -0.25;
+        armR = -0.35;
+        armRx = -0.5;
+        bob = ph > 0.95 || ph < 0.05 ? -0.025 : 0;
+        tilt = 0.05;
         break;
+      }
       case 'browsing':
         // Point to the side and lean towards it.
         armR = -1.6;
@@ -367,10 +389,31 @@ export class RobotAnimator {
         break;
       }
       case 'talking':
-        armL = 0.6 + Math.sin(t * 3) * 0.3;
-        armLx = -0.5;
+        // Sev's sketch: explaining with both arms, one high, one out to the side.
+        armL = 2.55 + Math.sin(t * 2.5) * 0.2;
+        armR = -1.1 - Math.sin(t * 2.5 + 1.2) * 0.25;
+        armLx = -0.3;
+        armRx = -0.3;
         bob = Math.sin(t * 6) * 0.02;
         break;
+      case 'walkTalking': {
+        // Talking on a stroll (Sev's sketches): legs keep walking while the arms explain,
+        // switching between one arm raised and both arms spread wide.
+        const ph = t * 7;
+        legSwing = Math.sin(ph) * 0.45;
+        bob = Math.abs(Math.sin(ph)) * 0.03;
+        if (Math.floor(moodTime / 2.5) % 2 === 0) {
+          armL = 2.3 + Math.sin(t * 5) * 0.25;
+          armLx = -0.3;
+          armRx = Math.sin(ph) * 0.4;
+        } else {
+          armL = 1.45 + Math.sin(t * 3) * 0.12;
+          armR = -1.45 - Math.sin(t * 3 + 1) * 0.12;
+          armLx = -0.2;
+          armRx = -0.2;
+        }
+        break;
+      }
       case 'error':
         rootX = moodTime < 0.8 ? Math.sin(moodTime * 40) * 0.04 : 0;
         armL = 0.05;
@@ -466,7 +509,7 @@ export class RobotAnimator {
 
     // Sitting on a window edge or the taskbar: legs hang over the edge and dangle slowly.
     let legForward = 0;
-    if (seated && mood !== 'walking' && mood !== 'running') {
+    if (seated && mood !== 'walking' && mood !== 'walkTalking' && mood !== 'running') {
       legForward = 0.35;
       legSwing = Math.sin(t * (mood === 'resting' ? 1.2 : 1.8)) * 0.3;
       bob = 0;
@@ -478,18 +521,19 @@ export class RobotAnimator {
     p.root.position.x = rootX * ROBOT_SCALE;
     p.root.rotation.y = facing;
     if (p.armL && r.armL) p.armL.rotation.set(r.armL.x + armLx, r.armL.y, r.armL.z + armL);
-    if (p.armR && r.armR) p.armR.rotation.set(r.armR.x + armRx, r.armR.y, r.armR.z + armR);
+    if (p.armR && r.armR) p.armR.rotation.set(r.armR.x + armRx, r.armR.y + armRy, r.armR.z + armR);
     if (p.legL && r.legL) p.legL.rotation.set(r.legL.x + legForward + legSwing, r.legL.y, r.legL.z);
     if (p.legR && r.legR) p.legR.rotation.set(r.legR.x + legForward - legSwing, r.legR.y, r.legR.z);
 
-    this.showProps(notepad, mug);
+    this.showProps(notepad, mug, hammer);
     if (notepad) this.keepUpright(p.notepad, r.notepadQ, propTilt);
     if (mug) this.keepUpright(p.mug, r.mugQ, propTilt);
   }
 
-  private showProps(notepad: boolean, mug: boolean): void {
+  private showProps(notepad: boolean, mug: boolean, hammer: boolean): void {
     if (this.parts.notepad) this.parts.notepad.visible = notepad;
     if (this.parts.mug) this.parts.mug.visible = mug;
+    if (this.parts.hammer) this.parts.hammer.visible = hammer;
   }
 
   /** Cancel the arm's rotation so a held prop keeps its rest orientation (plus a tilt), wherever the hand goes. */

@@ -152,6 +152,7 @@ window.companion.onEvent((evt) => {
   // A long task ends with a dance instead of the cheer clip.
   setMood(r.mood, r.bubble, r.holdSeconds, routed.dance);
   if (routed.dance) setOverlay('dancing', DANCE_SECONDS);
+  if (routed.coffee) setOverlay('sipping', SIP_SECONDS);
   if (routed.offerMore && r.bubble) {
     showBubble(r.bubble, true);
     pendingMore = routed.offerMore;
@@ -518,7 +519,7 @@ function frame(): void {
     }
     if (overlay) animator?.pose(overlay.mood, stepped, stepped - overlay.start, facing, seated);
     else {
-      const body = running ? 'running' : strolling ? 'walking' : bodyMood(mood);
+      const body = running ? 'running' : strolling ? (speaker.speaking ? 'walkTalking' : 'walking') : bodyMood(mood);
       animator?.pose(body, stepped, stepped - moodStart, facing, seated);
     }
   }
