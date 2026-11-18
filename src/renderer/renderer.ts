@@ -3,7 +3,7 @@ import type { Placement } from '../shared/settings';
 import { EventRouter } from './eventRouter';
 import { Face } from './face';
 import { IdleScheduler, SIP_SECONDS, YAWN_SECONDS } from './idleScheduler';
-import { ClipPlayer, DANCE_SECONDS, loadRobot, ROBOT_SCALE, RobotAnimator, type ClipName, type RobotParts } from './robot';
+import { ClipPlayer, DANCE_SECONDS, loadRobot, ROBOT_SCALE, RobotAnimator, WIDTH_SQUASH, type ClipName, type RobotParts } from './robot';
 import { Speaker } from './speaker';
 import { ROBOT_NAME, USER_NAME, type Mood } from './stateMachine';
 import { TOUR } from './tour';
@@ -554,7 +554,11 @@ loadRobot(face).then((p) => {
   parts = p;
   animator = new RobotAnimator(p);
   clips = new ClipPlayer(p);
-  scene.add(p.root);
+  const squash = new THREE.Group(); // narrows him on screen without touching his height
+  squash.scale.x = WIDTH_SQUASH;
+  squash.add(p.root);
+  scene.add(squash);
+  squash.updateMatrixWorld(true);
   resize();
   const hello = `Hello ${USER_NAME}, what can I do?`;
   setMood('greet', hello, 4);

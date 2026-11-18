@@ -32,7 +32,10 @@ const CLIP_FPS = 24;
 export const CLAUDE_ORANGE = 0xd97757;
 const INK = 0x2b211c;
 /** Overall size of Rusty on screen (1 = the original size). Walking speeds in renderer.ts scale with it. */
-export const ROBOT_SCALE = 0.85;
+export const ROBOT_SCALE = 0.765;
+/** Extra horizontal squash on screen (height unchanged). Applied by a wrapper in renderer.ts so it stays
+ * a screen-width squash even when Rusty turns to walk. */
+export const WIDTH_SQUASH = 0.95;
 const TARGET_HEIGHT = 1.4 * ROBOT_SCALE;
 /** Rest-pose width including arms; leaves room in the window for a raised arm. */
 const TARGET_WIDTH = 1.6 * ROBOT_SCALE;

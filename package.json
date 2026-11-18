@@ -7,6 +7,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node scripts/build.mjs && electron .",
+    "postinstall": "node scripts/prune-deps.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test-event": "node scripts/send-test-event.mjs",
