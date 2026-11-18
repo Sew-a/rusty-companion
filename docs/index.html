@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rusty, the face of Claude Code</title>
+  <meta name="description" content="Rusty is a little animated robot that lives on your desktop and shows what Claude Code is doing: thinking, hammering, asking for permission, cheering and reading replies aloud. Free, open source, runs locally.">
+  <meta property="og:title" content="Rusty: give Claude Code a face">
+  <meta property="og:description" content="A desktop robot that thinks, works, asks and cheers along with Claude Code, and reads the replies aloud. Free and open source.">
+  <meta property="og:image" content="https://sew-a.github.io/rusty-companion/images/tour_sheet.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='3' width='22' height='22' rx='4' fill='%23d97757'/%3E%3Crect x='9' y='7' width='14' height='11' rx='2' fill='%23f4ede4'/%3E%3Ccircle cx='13' cy='12' r='1.6' fill='%232b211c'/%3E%3Ccircle cx='19' cy='12' r='1.6' fill='%232b211c'/%3E%3Crect x='10' y='25' width='3' height='5' fill='%232b211c'/%3E%3Crect x='19' y='25' width='3' height='5' fill='%232b211c'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #f4ede4;
+      --paper: #fffaf3;
+      --ink: #2b211c;
+      --ink-soft: #5c4d44;
+      --orange: #d97757;
+      --rust: #b5603f;
+      --line: #e2d6c8;
+      --term: #1f1915;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--cream);
+      color: var(--ink);
+      font: 17px/1.6 Inter, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+    h1, h2, h3 { font-family: 'Bricolage Grotesque', Inter, sans-serif; line-height: 1.05; margin: 0; letter-spacing: -0.02em; }
+    code, pre, .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+    /* Nav */
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+    .logo { display: flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque'; font-weight: 800; font-size: 22px; text-decoration: none; }
+    .logo-mark { width: 30px; height: 30px; border-radius: 7px; background: var(--orange); display: grid; place-items: center; }
+    .logo-mark i { width: 18px; height: 13px; border-radius: 3px; background: var(--cream); position: relative; }
+    .logo-mark i::before, .logo-mark i::after { content: ''; position: absolute; top: 4px; width: 3px; height: 3px; border-radius: 50%; background: var(--ink); }
+    .logo-mark i::before { left: 4px; } .logo-mark i::after { right: 4px; }
+    .nav-links { display: flex; gap: 22px; align-items: center; font-size: 15px; font-weight: 500; }
+    .nav-links a { text-decoration: none; color: var(--ink-soft); }
+    .nav-links a:hover { color: var(--ink); }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 9px; padding: 13px 22px; border-radius: 999px; font-weight: 600; font-size: 16px; text-decoration: none; border: 2px solid var(--ink); transition: transform .12s, box-shadow .12s; }
+    .btn:hover { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--ink); }
+    .btn-primary { background: var(--ink); color: var(--cream); }
+    .btn-ghost { background: transparent; }
+    .btn svg { width: 19px; height: 19px; }
+    .nav-links .btn { padding: 8px 16px; font-size: 14px; color: var(--ink); }
+
+    /* Hero */
+    .hero { display: grid; grid-template-columns: 1fr 1.08fr; gap: 48px; align-items: center; padding: 40px 0 72px; }
+    .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--rust); margin-bottom: 18px; }
+    .hero h1 { font-size: clamp(48px, 7vw, 84px); font-weight: 800; }
+    .hero h1 em { font-style: normal; color: var(--orange); }
+    .lede { font-size: 20px; color: var(--ink-soft); margin: 22px 0 30px; max-width: 30em; }
+    .ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+    .facts { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 28px; font-size: 14px; color: var(--ink-soft); padding: 0; list-style: none; }
+    .facts li::before { content: '●'; color: var(--orange); margin-right: 7px; font-size: 10px; vertical-align: 2px; }
+
+    /* Live stage */
+    .stage-card { background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius); box-shadow: 8px 8px 0 var(--ink); overflow: hidden; }
+    .stage-top { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 2px solid var(--ink); font-size: 13px; font-weight: 600; }
+    .dots { display: flex; gap: 6px; } .dots i { width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--ink); }
+    .dots i:nth-child(1) { background: var(--orange); }
+    .live { display: flex; align-items: center; gap: 7px; color: var(--rust); }
+    .live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); animation: pulse 1.6s infinite; }
+    @keyframes pulse { 50% { opacity: .25; } }
+    #stage { position: relative; height: 400px; background:
+      radial-gradient(circle at 70% 30%, rgba(217,119,87,.10), transparent 55%),
+      linear-gradient(var(--cream), var(--paper)); }
+    #rusty { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .5s; }
+    #stage.ready #rusty { opacity: 1; }
+    .taskbar { position: absolute; left: 0; right: 0; bottom: 0; height: 22%; background: #e9dfd2; border-top: 2px solid var(--ink); }
+    .term { position: absolute; left: 16px; top: 16px; width: 54%; max-width: 330px; background: var(--term); color: #e9dfd2; border-radius: 10px; padding: 10px 12px 12px; font-size: 12px; line-height: 1.55; box-shadow: 0 6px 18px rgba(43,33,28,.25); z-index: 1; }
+    .term-title { color: #8f8077; font-size: 11px; margin-bottom: 4px; }
+    .term .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: in .25s ease-out; }
+    @keyframes in { from { opacity: 0; transform: translateY(4px); } }
+    .line.cmd { color: #8f8077; } .line.cmd::before { content: '$ '; }
+    .line.prompt { color: #fff; }
+    .line.tool { color: #e9a98f; }
+    .line.ask { color: #ffd479; }
+    .line.done { color: #9fd49a; }
+    .bubble { position: absolute; transform: translate(-50%, -100%); max-width: 250px; width: max-content; padding: 9px 13px; background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; font-size: 14px; line-height: 1.35; box-shadow: 0 2px 6px rgba(0,0,0,.18); z-index: 2; transition: opacity .2s; pointer-events: none; }
+    .bubble::after { content: ''; position: absolute; bottom: -10px; left: 50%; margin-left: -8px; border-width: 10px 8px 0; border-style: solid; border-color: var(--ink) transparent transparent; }
+    .hidden { opacity: 0; }
+    .thinking { position: absolute; display: flex; gap: 5px; padding: 7px 11px; background: var(--paper); border: 2px solid var(--ink); border-radius: 16px; transform: translate(-50%, -100%); z-index: 2; transition: opacity .2s; pointer-events: none; }
+    .thinking span { width: 7px; height: 7px; border-radius: 50%; background: #000; animation: 1.6s steps(1, end) infinite; }
+    .thinking span:nth-child(1) { animation-name: d1; } .thinking span:nth-child(2) { animation-name: d2; } .thinking span:nth-child(3) { animation-name: d3; }
+    @keyframes d1 { 0% { opacity: 0 } 25% { opacity: 1 } 100% { opacity: 1 } }
+    @keyframes d2 { 0% { opacity: 0 } 50% { opacity: 1 } 100% { opacity: 1 } }
+    @keyframes d3 { 0% { opacity: 0 } 75% { opacity: 1 } 100% { opacity: 1 } }
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 14px 14px; border-top: 2px solid var(--ink); }
+    .chips span { font-size: 12px; font-weight: 600; color: var(--ink-soft); width: 100%; }
+    .chips button { font: 500 13px Inter, sans-serif; padding: 5px 11px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; }
+    .chips button:hover { background: #f3e2d6; }
+    .chips button.on { background: var(--orange); color: #fff; border-color: var(--orange); }
+
+    /* Sections */
+    section { padding: 84px 0; }
+    .section-head { max-width: 640px; margin-bottom: 44px; }
+    .section-head h2 { font-size: clamp(34px, 4.5vw, 52px); font-weight: 800; }
+    .section-head p { color: var(--ink-soft); font-size: 18px; margin: 16px 0 0; }
+    .band { background: var(--paper); border-top: 2px solid var(--ink); border-bottom: 2px solid var(--ink); }
+
+    .states { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .state { background: var(--cream); border: 2px solid var(--ink); border-radius: 14px; padding: 20px; }
+    .state .when { font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--rust); }
+    .state h3 { font-size: 22px; margin: 8px 0 6px; }
+    .state p { margin: 0; font-size: 15px; color: var(--ink-soft); }
+
+    .shots { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: start; }
+    figure { margin: 0; background: var(--paper); border: 2px solid var(--ink); border-radius: var(--radius); overflow: hidden; }
+    figure img { display: block; width: 100%; height: auto; }
+    figcaption { padding: 12px 16px; font-size: 14px; color: var(--ink-soft); border-top: 2px solid var(--ink); }
+    .shots .tall { grid-row: span 2; }
+    .sheet { margin-top: 20px; }
+
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
+    .step { counter-increment: step; }
+    .step h3 { font-size: 22px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .step h3::before { content: counter(step); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--orange); color: #fff; font-size: 17px; flex: none; }
+    .step p { margin: 0 0 12px; color: var(--ink-soft); font-size: 15px; }
+    .code { position: relative; background: var(--term); color: #f1e7dc; border-radius: 12px; padding: 14px 16px; font-size: 13.5px; line-height: 1.7; }
+    .code pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+    .code .copy { position: absolute; top: 8px; right: 8px; font: 500 12px Inter, sans-serif; background: #3a2f29; color: #e9dfd2; border: 0; border-radius: 6px; padding: 4px 9px; cursor: pointer; }
+    .code .copy:hover { background: #4b3d35; }
+    .reqs { margin-top: 26px; font-size: 15px; color: var(--ink-soft); }
+
+    .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    .trio h3 { font-size: 22px; margin-bottom: 8px; }
+    .trio p { margin: 0; color: var(--ink-soft); font-size: 16px; }
+
+    .stack { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+    .stack span { border: 1.5px solid var(--ink); border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 500; background: var(--paper); }
+
+    .final { text-align: center; padding: 96px 0; }
+    .final h2 { font-size: clamp(38px, 5.5vw, 64px); font-weight: 800; }
+    .final p { color: var(--ink-soft); font-size: 18px; margin: 16px auto 30px; max-width: 34em; }
+    .final .ctas { justify-content: center; }
+
+    footer { border-top: 2px solid var(--ink); padding: 28px 0 40px; font-size: 14px; color: var(--ink-soft); }
+    footer .wrap { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; padding-top: 16px; }
+      .states, .steps, .trio { grid-template-columns: 1fr 1fr; }
+      .shots { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .wrap { padding: 0 16px; }
+      .nav-links a:not(.btn) { display: none; }
+      .states, .steps, .trio { grid-template-columns: 1fr; }
+      #stage { height: 360px; }
+      .term { width: 62%; font-size: 11px; }
+      section { padding: 60px 0; }
+      .stage-card { box-shadow: 5px 5px 0 var(--ink); }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn:hover { transform: none; } }
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <nav>
+      <a class="logo" href="#"><span class="logo-mark"><i></i></span>Rusty</a>
+      <div class="nav-links">
+        <a href="#what">What he does</a>
+        <a href="#install">Install</a>
+        <a class="btn btn-ghost" href="https://github.com/Sew-a/rusty-companion">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <div>
+        <span class="eyebrow">A desktop companion for Claude Code</span>
+        <h1>Give Claude<br>a <em>face.</em></h1>
+        <p class="lede">Rusty is a little robot who lives on your desktop. He thinks when Claude thinks, grabs a hammer when it edits your code, waves when it needs your OK, and cheers and reads the answer aloud when it's done.</p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="https://github.com/Sew-a/rusty-companion">
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            Get Rusty on GitHub
+          </a>
+          <a class="btn btn-ghost" href="#install">Install in 2 minutes</a>
+        </div>
+        <ul class="facts">
+          <li>Free &amp; open source</li>
+          <li>Runs 100% locally</li>
+          <li>Windows · macOS (beta)</li>
+        </ul>
+      </div>
+
+      <div class="stage-card" aria-label="Live demo of Rusty">
+        <div class="stage-top"><div class="dots"><i></i><i></i><i></i></div><span class="live">Live demo, the real model</span></div>
+        <div id="stage">
+          <div class="term mono" aria-hidden="true"><div class="term-title">Claude Code</div><div id="term-lines"></div></div>
+          <div class="taskbar"></div>
+          <canvas id="rusty"></canvas>
+          <div id="thinking" class="thinking hidden"><span></span><span></span><span></span></div>
+          <div id="bubble" class="bubble hidden"></div>
+        </div>
+        <div class="chips">
+          <span>Try a mood:</span>
+          <button data-mood="thinking">Thinking</button>
+          <button data-mood="working">Working</button>
+          <button data-mood="researching">Notes</button>
+          <button data-mood="permission">Permission</button>
+          <button data-mood="happy">Done</button>
+          <button data-mood="dancing">Dance</button>
+          <button data-mood="walking">Stroll</button>
+          <button data-mood="sipping">Coffee</button>
+          <button data-mood="error">Error</button>
+          <button data-mood="sleep">Nap</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="what" class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>He reacts to everything Claude does.</h2>
+          <p>Rusty listens to Claude Code's hooks, in the terminal or the Claude desktop app's Code tab. You can tell what's going on with a glance, without switching windows.</p>
+        </div>
+        <div class="states">
+          <div class="state"><div class="when">You send a prompt</div><h3>He thinks</h3><p>Hand on his chin, with a thought cloud above his head.</p></div>
+          <div class="state"><div class="when">Claude edits or runs code</div><h3>He hammers away</h3><p>Out comes the hammer, and the stepped stop-motion swings begin.</p></div>
+          <div class="state"><div class="when">Claude reads or researches</div><h3>He takes notes</h3><p>A little notepad, scribbling along while Claude digs in.</p></div>
+          <div class="state"><div class="when">Claude needs permission</div><h3>He asks, out loud</h3><p>Both arms waving. Ignore him for a minute and he knocks on his screen.</p></div>
+          <div class="state"><div class="when">Claude finishes</div><h3>He cheers and reads it</h3><p>The answer shows in a speech bubble and he reads the first lines aloud.</p></div>
+          <div class="state"><div class="when">A task took 7+ minutes</div><h3>He dances</h3><p>Long jobs deserve a little celebration.</p></div>
+          <div class="state"><div class="when">You ask for a bug fix</div><h3>He sprints</h3><p>Back and forth along the taskbar until it's fixed.</p></div>
+          <div class="state"><div class="when">Nothing's happening</div><h3>He strolls</h3><p>Walks the taskbar, sits on your active window, watches your mouse, naps.</p></div>
+          <div class="state"><div class="when">Morning or late night</div><h3>He sips coffee</h3><p>Or yawns. Mention coffee in a prompt and he'll have a sip too.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head">
+          <h2>He lives on your desktop, not in a tab.</h2>
+          <p>A transparent overlay that stays out of your way. Clicks pass right through except where Rusty is. Drag him anywhere; click a window and he hops on top of it.</p>
+        </div>
+        <div class="shots">
+          <figure class="tall"><img src="images/tour_sheet.png" alt="A grid of every state Rusty can be in" loading="lazy" width="1400" height="1074"><figcaption>Every state, from the built-in guided tour</figcaption></figure>
+          <figure><img src="images/rusty-on-chrome.png" alt="Rusty sitting on top of a Chrome window" loading="lazy" width="650" height="235"><figcaption>Sitting on your browser while Claude works in it</figcaption></figure>
+          <figure><img src="images/rusty-on-vscode.png" alt="Rusty sitting on the Claude Code panel in VS Code" loading="lazy" width="506" height="172"><figcaption>Perched on the Claude Code panel in VS Code</figcaption></figure>
+        </div>
+        <figure class="sheet"><img src="images/new_moods_sheet.png" alt="Rusty taking notes, sprinting, resting, dancing, knocking and drinking morning coffee" loading="lazy" width="1400" height="716"><figcaption>Notes, sprint, rest, dance, knock and morning coffee</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="install" class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Up and running in two minutes.</h2>
+          <p>You need Node.js 20+ and Claude Code 2.1+. The first start downloads the voice model (about 326 MB) once.</p>
+        </div>
+        <div class="steps">
+          <div class="step">
+            <h3>Get Rusty</h3>
+            <p>Clone the repo and install.</p>
+            <div class="code"><button class="copy">Copy</button><pre>git clone https://github.com/Sew-a/rusty-companion.git
+cd rusty-companion
+npm install</pre></div>
+          </div>
+          <div class="step">
+            <h3>Wake him up</h3>
+            <p>He appears above your taskbar, bottom right.</p>
+            <div class="code"><button class="copy">Copy</button><pre>npm start</pre></div>
+          </div>
+          <div class="step">
+            <h3>Connect Claude</h3>
+            <p>Adds local hooks (your settings are backed up first). New Claude Code sessions now drive Rusty.</p>
+            <div class="code"><button class="copy">Copy</button><pre>npm run hooks:install</pre></div>
+          </div>
+        </div>
+        <p class="reqs">Optional: five spoken skills (discussion, brainstorm, recap, quiz, build-and-learn) make Claude answer conversationally, so Rusty can read the whole reply aloud. See the <a href="https://github.com/Sew-a/rusty-companion#optional-spoken-skills">README</a>.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="section-head"><h2>Private by design.</h2></div>
+        <div class="trio">
+          <div><h3>Nothing leaves your machine</h3><p>Claude Code sends hook events to 127.0.0.1 only. No accounts, no analytics, no cloud.</p></div>
+          <div><h3>A voice that runs on your CPU</h3><p>Kokoro-82M speaks offline. Speech starts in about a second.</p></div>
+          <div><h3>Never in Claude's way</h3><p>Hooks answer instantly and never approve or deny anything. If Rusty isn't running, Claude doesn't notice.</p></div>
+        </div>
+        <div class="stack"><span>Electron</span><span>TypeScript</span><span>three.js</span><span>Blender (Python-built model)</span><span>Claude Code hooks</span><span>Kokoro-82M TTS</span><span>Win32 via koffi</span></div>
+      </div>
+    </section>
+
+    <div class="final wrap">
+      <h2>Your AI deserves a body.</h2>
+      <p>Rusty is free and open source. Star the repo, try him out, and tell us what he should do next.</p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="https://github.com/Sew-a/rusty-companion">Star Rusty on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/Sew-a/rusty-companion/issues">Suggest a mood</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Rusty is an original character. MIT licensed.</span>
+      <span>A fan-made helper for Claude Code, not an official Anthropic product.</span>
+    </div>
+  </footer>
+
+  <script>
+    for (const b of document.querySelectorAll('.copy')) {
+      b.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(b.nextElementSibling.textContent); b.textContent = 'Copied'; }
+        catch { b.textContent = 'Select & copy'; }
+        setTimeout(() => (b.textContent = 'Copy'), 1500);
+      });
+    }
+  </script>
+  <script src="demo.js"></script>
+</body>
+</html>

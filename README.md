@@ -6,6 +6,9 @@ app's Code tab), Rusty shows what Claude is doing: he thinks, gets busy, points 
 asks for your permission, cheers when a task is done and reads a short summary of the reply aloud.
 When nothing is happening he strolls along your taskbar or sits on top of the window you're using.
 
+**[▶ See him live in your browser](https://sew-a.github.io/rusty-companion/)** · free, open source,
+everything runs on your machine.
+
 <p align="center">
   <img src="docs/images/rusty-on-chrome.png" alt="Rusty sitting on top of a Chrome window" width="520"><br>
   <img src="docs/images/rusty-on-vscode.png" alt="Rusty sitting on the Claude Code panel in VS Code" width="420">
@@ -25,8 +28,9 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 | When… | Rusty… |
 |---|---|
 | a Claude Code session starts | waves and says hello |
-| you send a prompt | shows a thought cloud with dots |
-| Claude edits files or runs commands | looks busy |
+| you send a prompt | puts a hand on his chin and shows a thought cloud with dots |
+| Claude edits files or runs commands | hammers away |
+| Claude reads files | takes notes on a little notepad |
 | Claude uses the browser | points and looks curious |
 | Claude does research (several web lookups, a research skill or agent) | takes notes on a little notepad |
 | you ask for a bug fix | sprints back and forth along the taskbar while Claude works |
@@ -36,6 +40,8 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 | you say "let's have a discussion", "let's brainstorm", "quiz me", "walk me through what we built" or "what did we do today?" | reads the whole reply aloud (needs the optional skills) |
 | nothing is happening | strolls along the taskbar, sits on the active window, watches your mouse; after a while he yawns and sits down on the taskbar |
 | it's morning / late at night | sips coffee / yawns now and then |
+| you mention coffee in a prompt ("coffee time!") | has a sip from his mug |
+| he talks | explains with both arms, also while strolling |
 
 Other details: he follows only the session you last typed into, hops onto the top edge of the window
 you click (if it isn't maximised), remembers where you left him, and has a guided tour of all his
@@ -149,7 +155,11 @@ npm run build       # bundle with esbuild
 npm run typecheck   # TypeScript check
 npm test            # logic tests (vitest, no Electron needed)
 npm run test-event -- Stop "All done!"   # send a fake event to a running Rusty
+npm run site        # build the landing page in docs/ and serve it on http://localhost:4173
 ```
+
+The landing page (`docs/index.html`, live demo from `site/demo.ts`) is served by GitHub Pages from
+the `docs/` folder of `main`. Run `npm run build:site` after changing the model or the demo.
 
 Rebuild the model after editing `blender/build_robot.py`:
 
@@ -162,6 +172,6 @@ blender --background --factory-startup --python blender/build_robot.py
 - Rusty's design is original (from the author's sketches).
 - [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) and [kokoro-js](https://www.npmjs.com/package/kokoro-js): Apache-2.0
 - [Electron](https://www.electronjs.org), [three.js](https://threejs.org), [koffi](https://koffi.dev): MIT
-- This project: MIT (see `package.json`; a LICENSE file will be added before a public release).
+- This project: MIT (see [LICENSE](LICENSE)).
 
 Rusty is a fan-made helper for Claude Code, not an official Anthropic product.
