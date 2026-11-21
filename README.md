@@ -9,6 +9,9 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 **[▶ See him live in your browser](https://sevavetisyan.up.railway.app/work/rusty-companion)** · free, open source,
 everything runs on your machine.
 
+<img width="613" height="508" alt="Screenshot 2026-11-21 204150" src="https://github.com/user-attachments/assets/f4f94234-a722-4352-996e-7813e7eb9778" />
+https://github.com/user-attachments/assets/d3e34ae0-9206-4129-85b8-89bc5573aafd
+
 <p align="center">
   <img src="blender/previews/tour_sheet.png" alt="Every state Rusty can be in" width="760"><br>
   <img src="blender/previews/new_moods_sheet.png" alt="Taking notes, sprinting, resting, dancing, knocking and morning coffee" width="760">
