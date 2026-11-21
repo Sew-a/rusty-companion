@@ -377,6 +377,7 @@ function buildTrayMenu(): void {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: 'Show me around (tour)', click: test('CompanionDemo') },
+      { label: 'Showreel (30 s, for videos)', click: test('CompanionDemo', { reel: true }) },
       {
         label: 'Test states',
         submenu: [

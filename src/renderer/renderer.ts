@@ -6,7 +6,7 @@ import { IdleScheduler, SIP_SECONDS, YAWN_SECONDS } from './idleScheduler';
 import { ClipPlayer, DANCE_SECONDS, loadRobot, ROBOT_SCALE, RobotAnimator, WIDTH_SQUASH, type ClipName, type RobotParts } from './robot';
 import { Speaker } from './speaker';
 import { ROBOT_NAME, USER_NAME, type Mood } from './stateMachine';
-import { TOUR } from './tour';
+import { REEL, TOUR, type TourStep } from './tour';
 
 const BODY_FPS = 12; // stepped, stop-motion feel for the body
 const RENDER_FPS = 30; // the face (blink, mouth, eyes) updates at this rate
@@ -139,7 +139,7 @@ function wake(t: number): void {
 
 window.companion.onEvent((evt) => {
   const name = evt.hook_event_name ?? '';
-  if (name === 'CompanionDemo') return startTour();
+  if (name === 'CompanionDemo') return startTour(evt.reel ? REEL : TOUR);
   if (name === 'CompanionMood') return demoMood(String(evt.mood ?? ''));
   if (touring) return;
   const t = now();
@@ -201,20 +201,20 @@ function nudge(): void {
   say(line);
 }
 
-function startTour(): void {
+function startTour(steps: TourStep[]): void {
   if (tourTimer) clearTimeout(tourTimer);
   touring = true;
   const run = (i: number) => {
     strolling = false;
     overlay = null;
-    if (i >= TOUR.length) {
+    if (i >= steps.length) {
       touring = false;
       tourTimer = null;
       setMood('idle');
       nextWalkAt = now() + rand(...STROLL_GAP);
       return;
     }
-    const step = TOUR[i];
+    const step = steps[i];
     if (step.mood === 'walking') {
       // The walking step is a stroll with the idle face.
       strolling = true;
