@@ -10,11 +10,6 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 everything runs on your machine.
 
 <p align="center">
-  <img src="docs/images/rusty-on-chrome.png" alt="Rusty sitting on top of a Chrome window" width="520"><br>
-  <img src="docs/images/rusty-on-vscode.png" alt="Rusty sitting on the Claude Code panel in VS Code" width="420">
-</p>
-
-<p align="center">
   <img src="blender/previews/tour_sheet.png" alt="Every state Rusty can be in" width="760"><br>
   <img src="blender/previews/new_moods_sheet.png" alt="Taking notes, sprinting, resting, dancing, knocking and morning coffee" width="760">
 </p>
