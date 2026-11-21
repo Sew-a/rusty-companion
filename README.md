@@ -10,6 +10,7 @@ When nothing is happening he strolls along your taskbar or sits on top of the wi
 everything runs on your machine.
 
 <img width="613" height="508" alt="Screenshot 2026-11-21 204150" src="https://github.com/user-attachments/assets/f4f94234-a722-4352-996e-7813e7eb9778" />
+<br />
 https://github.com/user-attachments/assets/d3e34ae0-9206-4129-85b8-89bc5573aafd
 
 <p align="center">
