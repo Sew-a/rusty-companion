@@ -6,7 +6,7 @@ app's Code tab), Rusty shows what Claude is doing: he thinks, gets busy, points 
 asks for your permission, cheers when a task is done and reads a short summary of the reply aloud.
 When nothing is happening he strolls along your taskbar or sits on top of the window you're using.
 
-**[▶ See him live in your browser](https://sew-a.github.io/rusty-companion/)** · free, open source,
+**[▶ See him live in your browser](https://sevavetisyan.up.railway.app/work/rusty-companion)** · free, open source,
 everything runs on your machine.
 
 <p align="center">
