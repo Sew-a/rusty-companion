@@ -3,7 +3,7 @@ import { SessionFilter } from './sessionFilter';
 import { BUSY_TIMEOUT_SECONDS, IN_TURN_EVENTS, isBrowserTool, reactionFor, type Mood, type Reaction } from './stateMachine';
 
 /** Events whose bubble text (or speech) Rusty says aloud. */
-export const SPOKEN_EVENTS = new Set(['SessionStart', 'PermissionRequest', 'Notification', 'Stop', 'StopFailure', 'SessionEnd']);
+const SPOKEN_EVENTS = new Set(['SessionStart', 'PermissionRequest', 'Notification', 'Stop', 'StopFailure', 'SessionEnd']);
 
 /** A turn at least this long ends with a dance instead of the usual cheer. */
 export const DANCE_AFTER_SECONDS = 7 * 60;

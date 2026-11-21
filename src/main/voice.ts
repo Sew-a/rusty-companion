@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { Worker } from 'node:worker_threads';
 
-export const VOICE = 'am_fenrir';
+const VOICE = 'am_fenrir';
 /** Kokoro speaking speed. Below 1 because the pitch-up in robotize() also speeds speech up. */
-export const SPEED = 0.85;
+const SPEED = 0.85;
 
 /** Robot effect: pitch up by resampling, mix in a bit-crushed copy, and add a faint metallic ring
  *  (amplitude modulation). */

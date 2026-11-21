@@ -156,11 +156,7 @@ npm run build       # bundle with esbuild
 npm run typecheck   # TypeScript check
 npm test            # logic tests (vitest, no Electron needed)
 npm run test-event -- Stop "All done!"   # send a fake event to a running Rusty
-npm run site        # build the landing page in docs/ and serve it on http://localhost:4173
 ```
-
-The landing page (`docs/index.html`, live demo from `site/demo.ts`) is served by GitHub Pages from
-the `docs/` folder of `main`. Run `npm run build:site` after changing the model or the demo.
 
 Rebuild the model after editing `blender/build_robot.py`:
 

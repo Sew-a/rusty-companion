@@ -1,6 +1,6 @@
 {
   "name": "claude-desktop-companion",
-  "version": "0.1.0",
+  "version": "1.1.2",
   "private": true,
   "description": "An animated desktop companion that reacts to Claude Code sessions via hooks.",
   "main": "dist/main/main.js",
@@ -12,9 +12,7 @@
     "test": "vitest run",
     "test-event": "node scripts/send-test-event.mjs",
     "hooks:install": "node scripts/install-hooks.mjs",
-    "hooks:uninstall": "node scripts/install-hooks.mjs --uninstall",
-    "build:site": "node scripts/build-site.mjs",
-    "site": "node scripts/build-site.mjs && node scripts/serve-site.mjs"
+    "hooks:uninstall": "node scripts/install-hooks.mjs --uninstall"
   },
   "license": "MIT",
   "dependencies": {

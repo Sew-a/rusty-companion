@@ -38,7 +38,7 @@ const HAMMER_LOW = 1.2;
 const HAMMER_HIGH = 2.0;
 const HAMMER_HZ = 1.6;
 
-export const CLAUDE_ORANGE = 0xd97757;
+const CLAUDE_ORANGE = 0xd97757;
 const INK = 0x2b211c;
 /** Overall size of Rusty on screen (1 = the original size). Walking speeds in renderer.ts scale with it. */
 export const ROBOT_SCALE = 0.765;

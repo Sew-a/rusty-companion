@@ -21,8 +21,6 @@ npm run typecheck    # tsc --noEmit (run after every change)
 npm test             # vitest: event logic, idle scheduler, hook server, sync checks (run after every change)
 npm run test-event -- Stop "text"     # fake hook event to a running Rusty
 npm run hooks:install / hooks:uninstall
-npm run build:site   # landing page: bundles site/demo.ts to docs/demo.js, copies robot.glb + preview sheets
-npm run site         # build:site + serve docs/ on http://localhost:4173
 node scripts/voice-bench.mjs fp32     # TTS speed on this machine
 "C:\Program Files\Blender Foundation\Blender 5.1\blender.exe" --background --factory-startup --python blender/build_robot.py
 ```
@@ -41,9 +39,6 @@ After rebuilding the model, copy `assets/colors/robot_burnt.glb` to `assets/robo
 - `extras/*-skill`: optional spoken Claude Code skills (discussion is installed for Sev at
   `~/.claude/skills/discussion/`; brainstorm, recap, quiz, build-and-learn live here until installed)
 - `docs/IDEAS.md`: features suggested for later
-- `docs/index.html` + `site/demo.ts`: GitHub Pages landing page with a live Rusty (reuses `robot.ts` and
-  `face.ts`). `docs/demo.js`, `docs/robot.glb` and `docs/images/*_sheet.png` are build output: rerun
-  `npm run build:site` after changing the model or the renderer modules.
 
 ## Things that must stay in sync
 
@@ -53,6 +48,9 @@ After rebuilding the model, copy `assets/colors/robot_burnt.glb` to `assets/robo
   `*_Notepad`, `*_Mug`, `*_Hammer` (the app finds them by suffix)
 - Discussion marker `<!-- rusty:discussion -->`: every `extras/*-skill` ↔ `stateMachine.ts`
 - `test/sync.test.ts` checks all of the above.
+- Not checked by tests: the live demo on the portfolio page (sevavetisyan.up.railway.app/work/rusty-companion,
+  repo `../portfolio-project`) has its own port of `robot.ts`/`face.ts` in `src/lib/rusty/` and a copy of
+  `robot.glb` in `public/rusty/`. Update them there too after changing the model or poses.
 
 ## Gotchas (learned the hard way)
 
