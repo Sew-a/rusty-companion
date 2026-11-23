@@ -1,13 +1,15 @@
 # Rusty
 
+*Created by **Sevak Avetisyan**: an original character and app.*
+
 **Rusty is a little animated robot that lives on your desktop and is the face of Claude.**
 While you work with [Claude Code](https://code.claude.com) (in the terminal or the Claude desktop
 app's Code tab), Rusty shows what Claude is doing: he thinks, gets busy, points at the browser,
 asks for your permission, cheers when a task is done and reads a short summary of the reply aloud.
 When nothing is happening he strolls along your taskbar or sits on top of the window you're using.
 
-**[▶ See him live in your browser](https://sevavetisyan.up.railway.app/work/rusty-companion)** · free, open source,
-everything runs on your machine.
+**[▶ See him live in your browser](https://sevavetisyan.up.railway.app/work/rusty-companion)** · free to use and change
+(not to sell), source code included, everything runs on your machine.
 
 <p align="center">
   <img width="613" height="508" alt="Rusty on the desktop, saying hi" src="https://github.com/user-attachments/assets/f4f94234-a722-4352-996e-7813e7eb9778" />
@@ -166,9 +168,21 @@ blender --background --factory-startup --python blender/build_robot.py
 
 ## Credits and licences
 
-- Rusty's design is original (from the author's sketches).
+Rusty Companion and the Rusty character were created by **Sevak Avetisyan**. Rusty's design is
+original, from Sevak's own sketches.
+
+**You may** use Rusty, copy him, change him and share your changes, for free, as long as you credit
+"Rusty, created by Sevak Avetisyan" and link back here. **You may not** sell Rusty or anything built
+from him, or use him commercially, without written permission.
+
+- Code: [PolyForm Noncommercial 1.0.0](LICENSE)
+- The Rusty character and art (`assets/`, `blender/previews/`, images and videos):
+  [CC BY-NC 4.0](CHARACTER-LICENSE.md)
+- Versions up to 1.1.2 were MIT-licensed; copies taken then keep that licence.
+
+Third-party parts keep their own licences:
+
 - [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) and [kokoro-js](https://www.npmjs.com/package/kokoro-js): Apache-2.0
 - [Electron](https://www.electronjs.org), [three.js](https://threejs.org), [koffi](https://koffi.dev): MIT
-- This project: MIT (see [LICENSE](LICENSE)).
 
 Rusty is a fan-made helper for Claude Code, not an official Anthropic product.

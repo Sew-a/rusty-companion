@@ -1,8 +1,14 @@
 {
   "name": "claude-desktop-companion",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "private": true,
   "description": "An animated desktop companion that reacts to Claude Code sessions via hooks.",
+  "author": "Sevak Avetisyan",
+  "homepage": "https://github.com/Sew-a/rusty-companion#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sew-a/rusty-companion.git"
+  },
   "main": "dist/main/main.js",
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -14,7 +20,7 @@
     "hooks:install": "node scripts/install-hooks.mjs",
     "hooks:uninstall": "node scripts/install-hooks.mjs --uninstall"
   },
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "dependencies": {
     "koffi": "^3.3.8",
     "kokoro-js": "^1.2.1",
